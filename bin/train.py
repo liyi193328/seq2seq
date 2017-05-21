@@ -23,9 +23,10 @@ from __future__ import unicode_literals
 
 import os
 import tempfile
-
+import json
 import yaml
 
+import tensorflow
 import tensorflow as tf
 from tensorflow.contrib.learn.python.learn import learn_runner
 from tensorflow.contrib.learn.python.learn.estimators import run_config
@@ -39,6 +40,11 @@ from seq2seq.data import input_pipeline
 from seq2seq.metrics import metric_specs
 from seq2seq.training import hooks
 from seq2seq.training import utils as training_utils
+
+tf.flags.DEFINE_string("ps_hosts","", "Comma-separated list of hostname:port pairs[""]")
+tf.flags.DEFINE_string("worker_hosts","", "Comma-separated list of hostname:port pairs[""]")
+tf.flags.DEFINE_string("job_name", None, "One of 'ps','worker'[None]")
+tf.flags.DEFINE_integer("task_index", 0, "Index of task within the job[0]")
 
 tf.flags.DEFINE_string("config_paths", "",
                        """Path to a YAML configuration files defining FLAG
@@ -79,7 +85,8 @@ tf.flags.DEFINE_string("output_dir", None,
                        to. If None, a local temporary directory is created.""")
 
 # Training parameters
-tf.flags.DEFINE_string("schedule", "continuous_train_and_eval",
+tf.flags.DEFINE_bool("cloud",True, "local or cloud(distributed)[True]")
+tf.flags.DEFINE_string("schedule", "default",
                        """Estimator function to call, defaults to
                        continuous_train_and_eval for local run""")
 tf.flags.DEFINE_integer("train_steps", None,
@@ -109,6 +116,9 @@ tf.flags.DEFINE_integer("keep_checkpoint_every_n_hours", 4,
 tf.flags.DEFINE_float("gpu_memory_fraction", 1.0,
                       """Fraction of GPU memory used by the process on
                       each GPU uniformly on the same machine.""")
+tf.flags.DEFINE_boolean("allow_soft_placement", True,
+                        """change the device to a CPU for this operation, 
+                        or set TensorFlow to automatically change the device""")
 tf.flags.DEFINE_boolean("gpu_allow_growth", False,
                         """Allow GPU memory allocation to grow
                         dynamically.""")
@@ -118,6 +128,88 @@ tf.flags.DEFINE_boolean("log_device_placement", False,
 
 FLAGS = tf.flags.FLAGS
 
+# tf.logging.set_verbosity(tf.logging.DEBUG)
+
+tf.logging.info("cuda visable device:{}".format(os.environ.get("CUDA_VISIBLE_DEVICES", None)))
+
+
+def Is_chief(config):
+    if config.task_id == 0 and os.environ.get("environment","local") == run_config.Environment.CLOUD:
+        if config.task_type == "worker":
+            return True
+    return False
+
+def get_run_config():
+
+    ps_hosts = FLAGS.ps_hosts.split(",")
+    worker_hosts = FLAGS.worker_hosts.split(",")
+
+    if FLAGS.cloud is True:
+        os.environ["environment"] = run_config.Environment.CLOUD
+        cluster = {
+            "ps": ps_hosts,
+            "worker": worker_hosts
+        }
+        os.environ["TF_CONFIG"] = json.dumps(
+            {
+                "cluster": cluster,
+                "environment": os.environ["environment"],
+                "task": {
+                    "type": FLAGS.job_name,
+                    "index": FLAGS.task_index
+                }
+            }
+        )
+    else:
+        os.environ["environment"] = run_config.Environment.LOCAL
+    tf.logging.info("tf_config:{}".format(os.environ.get("TF_CONFIG",None)))
+
+    config = run_config.RunConfig(
+        tf_random_seed=FLAGS.tf_random_seed,
+        save_checkpoints_secs=FLAGS.save_checkpoints_secs,
+        save_checkpoints_steps=FLAGS.save_checkpoints_steps,
+        keep_checkpoint_max=FLAGS.keep_checkpoint_max,
+        keep_checkpoint_every_n_hours=FLAGS.keep_checkpoint_every_n_hours,
+        gpu_memory_fraction=FLAGS.gpu_memory_fraction)
+    config.tf_config.gpu_options.allow_growth = FLAGS.gpu_allow_growth
+    config.tf_config.log_device_placement = FLAGS.log_device_placement
+    config.tf_config.allow_soft_placement = FLAGS.allow_soft_placement
+
+    if Is_chief(config):
+        config._is_chief = True
+
+    return config
+
+def get_distributed_schedule(config):
+    """
+    return some schedule
+    """
+    tf.logging.info("begin to get schedule, the run config is:")
+    tf.logging.info(config.__dict__)
+
+    if FLAGS.cloud is True and FLAGS.schedule == "default":
+
+        if not config.task_type:
+            raise ValueError('Must specify a schedule')
+
+        if config.is_chief:
+            # TODO(rhaertel): handle the case where there is more than one master
+            # or explicitly disallow such a case.
+            # return 'continuous_train_and_eval'
+            # return "train_and_evaluate"
+            return "dis_train_and_evaluate"
+
+        elif config.task_type == run_config.TaskType.PS:
+            return 'run_std_server'
+        elif config.task_type == run_config.TaskType.WORKER:
+            return 'train'
+
+        raise ValueError('No default schedule for task type: %s' % (config.task_type))
+
+    else: #local
+        return "continuous_train_and_eval"
+
+
 def create_experiment(output_dir):
   """
   Creates a new Experiment instance.
@@ -125,28 +217,18 @@ def create_experiment(output_dir):
   Args:
     output_dir: Output directory for model checkpoints and summaries.
   """
-
-  config = run_config.RunConfig(
-      tf_random_seed=FLAGS.tf_random_seed,
-      save_checkpoints_secs=FLAGS.save_checkpoints_secs,
-      save_checkpoints_steps=FLAGS.save_checkpoints_steps,
-      keep_checkpoint_max=FLAGS.keep_checkpoint_max,
-      keep_checkpoint_every_n_hours=FLAGS.keep_checkpoint_every_n_hours,
-      gpu_memory_fraction=FLAGS.gpu_memory_fraction)
-  config.tf_config.gpu_options.allow_growth = FLAGS.gpu_allow_growth
-  config.tf_config.log_device_placement = FLAGS.log_device_placement
-
+  config = get_run_config()
   train_options = training_utils.TrainOptions(
-      model_class=FLAGS.model,
-      model_params=FLAGS.model_params)
+    model_class=FLAGS.model,
+    model_params=FLAGS.model_params)
   # On the main worker, save training options
   if config.is_chief:
-    gfile.MakeDirs(output_dir)
-    train_options.dump(output_dir)
+      gfile.MakeDirs(output_dir)
+      train_options.dump(output_dir)
 
   bucket_boundaries = None
   if FLAGS.buckets:
-    bucket_boundaries = list(map(int, FLAGS.buckets.split(",")))
+      bucket_boundaries = list(map(int, FLAGS.buckets.split(",")))
 
   # Training data input pipeline
   train_input_pipeline = input_pipeline.make_input_pipeline_from_def(
@@ -239,7 +321,7 @@ def main(_argv):
         config_flags = yaml.load(config_file)
         final_config = _deep_merge_dict(final_config, config_flags)
 
-  tf.logging.info("Final Config:\n%s", yaml.dump(final_config))
+  tf.logging.info("Flags from file:\n%s", yaml.dump(final_config))
 
   # Merge flags with config values
   for flag_key, flag_value in final_config.items():
@@ -265,6 +347,17 @@ def main(_argv):
 
   if not FLAGS.input_pipeline_dev:
     raise ValueError("You must specify input_pipeline_dev")
+
+  tf.logging.info("now flags:")
+  tf.logging.info(FLAGS.__dict__["__flags"])
+
+  ##get and change schedule here
+  config = get_run_config()
+  schedule = get_distributed_schedule(config)
+  setattr(FLAGS,"schedule",schedule)
+  tf.logging.warn( "{} 's schdule: {}".format(config.master, schedule) )
+
+  tf.logging.warn("flags:",FLAGS.__dict__["__flags"])
 
   learn_runner.run(
       experiment_fn=create_experiment,

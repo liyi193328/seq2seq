@@ -30,3 +30,5 @@ model_params:
   source.max_seq_len: 50
   source.reverse: false
   target.max_seq_len: 50
+  vocab_source: /home/bigdata/active_project/test_seq2seq_py2/yard_seq2seq/ques_50w/ques_50w_data/vocab/shared.vocab.txt
+  vocab_target: /home/bigdata/active_project/test_seq2seq_py2/yard_seq2seq/ques_50w/ques_50w_data/vocab/shared.vocab.txt

@@ -18,6 +18,9 @@ sharing issues.
 
 import tensorflow as tf
 
+from tensorflow.contrib.learn.python.learn.experiment import  _new_attr_context
+from tensorflow.contrib.learn.python.learn import monitors
+
 class Experiment(tf.contrib.learn.Experiment):
   """A patched tf.learn Experiment class to handle GPU memory
   sharing issues."""
@@ -110,5 +113,58 @@ class Experiment(tf.contrib.learn.Experiment):
           metrics=self._eval_metrics,
           name="one_pass",
           hooks=self._eval_hooks)
+
+    return eval_result, self._maybe_export(eval_result)
+
+
+  def dis_train_and_evaluate(self):
+    """Interleaves training and evaluation.
+
+    The frequency of evaluation is controlled by the contructor arg
+    `min_eval_frequency`. When this parameter is None or 0, evaluation happens
+    only after training has completed. Note that evaluation cannot happen
+    more frequently than checkpoints are taken. If no new snapshots are
+    available when evaluation is supposed to occur, then evaluation doesn't
+    happen for another `min_eval_frequency` steps (assuming a checkpoint is
+    available at that point). Thus, settings `min_eval_frequency` to 1 means
+    that the model will be evaluated everytime there is a new checkpoint.
+
+    This is particular useful for a "Master" task in the cloud, whose
+    responsibility it is to take checkpoints, evaluate those checkpoints,
+    and write out summaries. Participating in training as the supervisor
+    allows such a task to accomplish the first and last items, while
+    performing evaluation allows for the second.
+
+    Returns:
+      The result of the `evaluate` call to the `Estimator`.
+    """
+    # The directory to which evaluation summaries are written are determined
+    # by adding a suffix to 'eval'; that suffix is the 'name' parameter to
+    # the various evaluate(...) methods. By setting it to None, we force
+    # the directory name to simply be 'eval'.
+    eval_dir_suffix = "one_pass"
+
+    # We set every_n_steps to 1, but evaluation only occurs when a new
+    # snapshot is available. If, by the time we finish evaluation
+    # there is a new snapshot, then we just evaluate again. Otherwise,
+    # we keep training until one becomes available.
+    with _new_attr_context(self, "_train_monitors"):
+      self._train_monitors = self._train_monitors or []
+      if self._min_eval_frequency:
+        self._train_monitors += [monitors.ValidationMonitor(
+            input_fn=self._eval_input_fn, eval_steps=self._eval_steps,
+            metrics=self._eval_metrics, every_n_steps=self._min_eval_frequency,
+            name=eval_dir_suffix,
+        )]
+      self.train(delay_secs=0)
+
+    tf.logging.info("Evaluating model now.")
+
+    eval_result = self._estimator.evaluate(
+        input_fn=self._eval_input_fn,
+        steps=self._eval_steps,
+        metrics=self._eval_metrics,
+        name="one_pass",
+        hooks=self._eval_hooks)
 
     return eval_result, self._maybe_export(eval_result)
