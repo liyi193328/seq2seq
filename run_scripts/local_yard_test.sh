@@ -2,8 +2,11 @@
 
 ##changable according to your data dir and task
 
+echo "must enter the project seq2seq dir, then bash run_scripts/local_yard_test.sh"
+
 DATA_ROOT=/mnt/yardcephfs/mmyard/g_wxg_td_prc/turingli/data
-SEQ2SEQ_PROJECT_DIR=${PWD}/seq2seq
+
+SEQ2SEQ_PROJECT_DIR=${PWD}
 CONFIG_DIR=${SEQ2SEQ_PROJECT_DIR}/example_configs/yard_ques_gen_10w_config
 echo "config dir: ${CONFIG_DIR}"
 echo "seq2seq project dir: ${SEQ2SEQ_PROJECT_DIR}"
@@ -30,7 +33,8 @@ TRAIN_STEPS=500000
 BATCH_SIZE=64
 EVAL_EVERY_N_STEPS=5000
 
-export PYTHONPATH=${PWD}/pyrouge:${SEQ2SEQ_PROJECT_DIR}:$PYTHONPATH
+# export PYTHONPATH=${PWD}/pyrouge:${SEQ2SEQ_PROJECT_DIR}:$PYTHONPATH
+export PYTHONPATH=${SEQ2SEQ_PROJECT_DIR}:${PYTHONPATH}
 echo "PYTHONPATH: ${PYTHONPATH}"
 
 cd ${SEQ2SEQ_PROJECT_DIR}
