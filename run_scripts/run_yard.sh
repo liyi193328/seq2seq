@@ -13,8 +13,9 @@ echo $4
 echo "must enter the project seq2seq dir, then bash run_scripts/local_yard_test.sh"
 
 DATA_ROOT=/mnt/yardcephfs/mmyard/g_wxg_td_prc/turingli/data
-
+MODEL_NAME=model_yard
 SEQ2SEQ_PROJECT_DIR=${PWD}
+
 CONFIG_DIR=${SEQ2SEQ_PROJECT_DIR}/example_configs/yard_ques_gen_10w_config
 echo "config dir: ${CONFIG_DIR}"
 echo "seq2seq project dir: ${SEQ2SEQ_PROJECT_DIR}"
@@ -31,12 +32,9 @@ DEV_TARGETS=$DATA_DIR/dev/targets.txt
 TEST_SOURCES=$DATA_DIR/test/sources.txt
 TEST_TARGETS=$DATA_DIR/test/targets.txt
 
-MODEL_DIR=$TASK_ROOT/model_yard
-
+MODEL_DIR=${SEQ2SEQ_PROJECT_DIR}/${MODEL_NAME}
+mkdir -p ${MODEL_DIR}
 echo "MODEL_DIR: $MODEL_DIR"
-
-rm -rf $MODEL_DIR
-mkdir -p $MODEL_DIR
 
 TRAIN_STEPS=500000
 BATCH_SIZE=64
