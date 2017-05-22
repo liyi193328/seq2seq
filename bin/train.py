@@ -128,7 +128,7 @@ tf.flags.DEFINE_boolean("log_device_placement", False,
 
 FLAGS = tf.flags.FLAGS
 
-# tf.logging.set_verbosity(tf.logging.DEBUG)
+tf.logging.set_verbosity(tf.logging.DEBUG)
 
 tf.logging.info("cuda visable device:{}".format(os.environ.get("CUDA_VISIBLE_DEVICES", None)))
 
