@@ -195,9 +195,9 @@ def get_distributed_schedule(config):
         if config.is_chief:
             # TODO(rhaertel): handle the case where there is more than one master
             # or explicitly disallow such a case.
-            # return 'continuous_train_and_eval'
+            return 'continuous_train_and_eval'
             # return "train_and_evaluate"
-            return "dis_train_and_evaluate"
+            # return "dis_train_and_evaluate"
 
         elif config.task_type == run_config.TaskType.PS:
             return 'run_std_server'
