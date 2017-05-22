@@ -242,9 +242,10 @@ class PrintModelAnalysisHook(TrainingHook):
 
   def begin(self):
     # Dump to file on the chief worker
-    if self.is_chief:
-      opts = tf.contrib.tfprof.model_analyzer.TRAINABLE_VARS_PARAMS_STAT_OPTIONS
-      opts['dump_to_file'] = os.path.abspath(self._filename)
+
+    opts = tf.contrib.tfprof.model_analyzer.TRAINABLE_VARS_PARAMS_STAT_OPTIONS
+    opts['dump_to_file'] = os.path.abspath(self._filename)
+    if os.path.exists(opts['dump_to_file']) == False:
       tf.contrib.tfprof.model_analyzer.print_model_analysis(
           tf.get_default_graph(), tfprof_options=opts)
 
