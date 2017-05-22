@@ -57,6 +57,8 @@ python -m bin.train \
   $2 \
   $3 \
   $4 \
+  --allow_soft_placement=True \
+  --gpu_allow_growth=True \
   --cloud=True \
   --schedule="default" \
   --batch_size=$BATCH_SIZE \

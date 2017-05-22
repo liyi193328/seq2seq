@@ -250,7 +250,7 @@ class PrintModelAnalysisHook(TrainingHook):
           tf.get_default_graph(), tfprof_options=opts)
 
     # Print the model analysis
-    with gfile.GFile(self._filename) as file:
+    with gfile.GFile(opts['dump_to_file']) as file:
       tf.logging.info(file.read())
 
 
