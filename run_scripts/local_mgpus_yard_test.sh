@@ -49,8 +49,8 @@ python -m bin.train \
       $CONFIG_DIR/text_metrics_bpe.yml" \
   --cloud=False \
   --allow_soft_placement=True \
-  --batch_size $BATCH_SIZE \
-  --train_steps $TRAIN_STEPS \
+  --batch_size=$BATCH_SIZE \
+  --train_steps=$TRAIN_STEPS \
   --gpu_memory_fraction=0.5 \
   --eval_every_n_steps=$EVAL_EVERY_N_STEPS \
   --output_dir $MODEL_DIR  &
