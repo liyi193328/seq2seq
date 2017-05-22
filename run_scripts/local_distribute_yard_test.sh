@@ -22,7 +22,7 @@ DEV_SOURCES=$DATA_DIR/dev/sources.txt
 DEV_TARGETS=$DATA_DIR/dev/targets.txt
 TEST_SOURCES=$DATA_DIR/test/sources.txt
 TEST_TARGETS=$DATA_DIR/test/targets.txt
-MODEL_DIR=$TASK_ROOT/model_local
+MODEL_DIR=$TASK_ROOT/model_local_single
 
 echo "MODEL_DIR: $MODEL_DIR"
 
@@ -41,60 +41,16 @@ cd ${SEQ2SEQ_PROJECT_DIR}
 echo "now in dir:$PWD, begin to train model"
 
 #####
-CUDA_VISIBLE_DEVICES=0
+CUDA_VISIBLE_DEVICES="0,1,2"
 python -m bin.train \
-  --ps_hosts="localhost:2222" \
-  --worker_hosts="localhost:2223,localhost:2224" \
-  --job_name="ps" \
-  --task_index=0 \
   --config_paths="
       $CONFIG_DIR/nmt_small.yml,
       $CONFIG_DIR/train_seq2seq.yml,
       $CONFIG_DIR/text_metrics_bpe.yml" \
-  --cloud=True
-  --schedule="default"
+  --cloud=False
   --allow_soft_placement=True
   --batch_size $BATCH_SIZE \
   --train_steps $TRAIN_STEPS \
   --gpu_memory_fraction=1 \
   --eval_every_n_steps=$EVAL_EVERY_N_STEPS \
-  --output_dir $MODEL_DIR  &
-
-CUDA_VISIBLE_DEVICES=1
-python -m bin.train \
-  --ps_hosts="localhost:2222" \
-  --worker_hosts="localhost:2223,localhost:2224" \
-  --job_name="worker" \
-  --task_index=0 \
-  --schedule="" \
-  --config_paths="
-      $CONFIG_DIR/nmt_small.yml,
-      $CONFIG_DIR/train_seq2seq.yml,
-      $CONFIG_DIR/text_metrics_bpe.yml" \
-  --cloud=True
-  --schedule="default"
-  --allow_soft_placement=True
-  --batch_size $BATCH_SIZE \
-  --train_steps $TRAIN_STEPS \
-  --eval_every_n_steps=$EVAL_EVERY_N_STEPS \
-  --gpu_memory_fraction=1 \
-  --output_dir $MODEL_DIR  &
-
-CUDA_VISIBLE_DEVICES=2
-python -m bin.train \
-  --ps_hosts="localhost:2222" \
-  --worker_hosts="localhost:2223,localhost:2224" \
-  --job_name="worker" \
-  --task_index=1 \
-  --config_paths="
-      $CONFIG_DIR/nmt_small.yml,
-      $CONFIG_DIR/train_seq2seq.yml,
-      $CONFIG_DIR/text_metrics_bpe.yml" \
-  --cloud=True
-  --schedule="default"
-  --allow_soft_placement=True
-  --batch_size $BATCH_SIZE \
-  --train_steps $TRAIN_STEPS \
-  --eval_every_n_steps=$EVAL_EVERY_N_STEPS \
-  --gpu_memory_fraction=1 \
   --output_dir $MODEL_DIR  &
