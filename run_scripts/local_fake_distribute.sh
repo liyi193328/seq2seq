@@ -52,8 +52,8 @@ python -m bin.train \
       $CONFIG_DIR/train_seq2seq.yml,
       $CONFIG_DIR/text_metrics_bpe.yml" \
   --cloud=True \
-  --schedule="default"
-  --allow_soft_placement=True
+  --schedule="default" \
+  --allow_soft_placement=True \
   --batch_size $BATCH_SIZE \
   --train_steps $TRAIN_STEPS \
   --gpu_memory_fraction=1 \
@@ -72,8 +72,8 @@ python -m bin.train \
       $CONFIG_DIR/train_seq2seq.yml,
       $CONFIG_DIR/text_metrics_bpe.yml" \
   --cloud=True \
-  --schedule="default"
-  --allow_soft_placement=True
+  --schedule="default" \
+  --allow_soft_placement=True \
   --batch_size $BATCH_SIZE \
   --train_steps $TRAIN_STEPS \
   --eval_every_n_steps=$EVAL_EVERY_N_STEPS \
@@ -91,8 +91,8 @@ python -m bin.train \
       $CONFIG_DIR/train_seq2seq.yml,
       $CONFIG_DIR/text_metrics_bpe.yml" \
   --cloud=True \
-  --schedule="default"
-  --allow_soft_placement=True
+  --schedule="default" \
+  --allow_soft_placement=True \
   --batch_size $BATCH_SIZE \
   --train_steps $TRAIN_STEPS \
   --eval_every_n_steps=$EVAL_EVERY_N_STEPS \

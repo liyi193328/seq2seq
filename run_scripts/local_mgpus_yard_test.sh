@@ -48,7 +48,7 @@ python -m bin.train \
       $CONFIG_DIR/train_seq2seq.yml,
       $CONFIG_DIR/text_metrics_bpe.yml" \
   --cloud=False \
-  --allow_soft_placement=True
+  --allow_soft_placement=True \
   --batch_size $BATCH_SIZE \
   --train_steps $TRAIN_STEPS \
   --gpu_memory_fraction=0.5 \
