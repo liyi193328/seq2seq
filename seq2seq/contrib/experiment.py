@@ -101,10 +101,12 @@ class Experiment(tf.contrib.learn.Experiment):
         break
 
       tf.logging.info("Training model for %s steps", train_steps_per_iteration)
-      self._estimator.fit(
-          input_fn=self._train_input_fn,
-          steps=train_steps_per_iteration,
-          monitors=self._train_monitors)
+      self.train(delay_secs=0)
+
+      # self._estimator.fit(
+      #     input_fn=self._train_input_fn,
+      #     steps=train_steps_per_iteration,
+      #     monitors=self._train_monitors)
 
       tf.logging.info("Evaluating model now.")
       eval_result = self._estimator.evaluate(
