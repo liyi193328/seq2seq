@@ -47,7 +47,7 @@ python -m bin.train \
       $CONFIG_DIR/nmt_small.yml,
       $CONFIG_DIR/train_seq2seq.yml,
       $CONFIG_DIR/text_metrics_bpe.yml" \
-  --cloud=False
+  --cloud=False \
   --allow_soft_placement=True
   --batch_size $BATCH_SIZE \
   --train_steps $TRAIN_STEPS \
