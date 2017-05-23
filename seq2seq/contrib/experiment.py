@@ -474,17 +474,13 @@ class Experiment(tf.contrib.learn.Experiment):
                        steps=train_steps_per_iteration,
                        hooks=self._train_monitors)
 
-      # self._estimator.fit(
-      #     input_fn=self._train_input_fn,
-      #     steps=train_steps_per_iteration,
-      #     monitors=self._train_monitors)
-
       logging.info("Evaluating model now.")
       eval_result = self._call_evaluate(input_fn=self._eval_input_fn,
                                         steps=self._eval_steps,
                                         metrics=self._eval_metrics,
                                         name="one_pass",
                                         hooks=self._eval_hooks)
+      logging.info("End evalution...")
 
     return eval_result, self._maybe_export(eval_result)
 
