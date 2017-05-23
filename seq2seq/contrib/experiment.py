@@ -468,11 +468,18 @@ class Experiment(tf.contrib.learn.Experiment):
                   config.environment != run_config.Environment.GOOGLE and
               config.cluster_spec and config.master):
           self._start_server()
-          
+
       logging.info("Training model for %s steps", train_steps_per_iteration)
       self._call_train(input_fn=self._train_input_fn,
                        steps=train_steps_per_iteration,
                        hooks=self._train_monitors)
+      tf.logging.info("Training model for %s steps", train_steps_per_iteration)
+      self.train(delay_secs=0)
+
+      # self._estimator.fit(
+      #     input_fn=self._train_input_fn,
+      #     steps=train_steps_per_iteration,
+      #     monitors=self._train_monitors)
 
       logging.info("Evaluating model now.")
       eval_result = self._call_evaluate(input_fn=self._eval_input_fn,
