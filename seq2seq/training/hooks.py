@@ -68,6 +68,32 @@ class TrainingHook(tf.train.SessionRunHook, Configurable):
   def default_params():
     raise NotImplementedError()
 
+class EvalutionHook(tf.train.SessionRunHook, Configurable):
+  """Abstract base class for training hooks.
+  """
+
+  def __init__(self, params, model_dir, run_config):
+    tf.train.SessionRunHook.__init__(self)
+    Configurable.__init__(self, params, tf.contrib.learn.ModeKeys.EVAL)
+    self._model_dir = model_dir
+    self._run_config = run_config
+
+  @property
+  def model_dir(self):
+    """Returns the directory model checkpoints are written to.
+    """
+    return os.path.abspath(self._model_dir)
+
+  @property
+  def is_chief(self):
+    """Returns true if and only if the current process is the chief.
+    This is used for distributed training.
+    """
+    return self._run_config.is_chief
+
+  @abstractstaticmethod
+  def default_params():
+    raise NotImplementedError()
 
 class MetadataCaptureHook(TrainingHook):
   """A hook to capture metadata for a single step.
@@ -374,3 +400,92 @@ class SyncReplicasOptimizerHook(TrainingHook):
     if self._q_runner is not None:
       self._q_runner.create_threads(
           session, coord=coord, daemon=True, start=True)
+
+
+class EvaluationSaveSampleHook(EvalutionHook):
+  """Occasionally samples predictions from the training run and prints them.
+
+  Params:
+    every_n_secs: Sample predictions every N seconds.
+      If set, `every_n_steps` must be None.
+    every_n_steps: Sample predictions every N steps.
+      If set, `every_n_secs` must be None.
+    sample_dir: Optional, a directory to write samples to.
+    delimiter: Join tokens on this delimiter. Defaults to space.
+  """
+
+  #pylint: disable=missing-docstring
+
+  def __init__(self, params, model_dir, run_config):
+    super(EvaluationSaveSampleHook, self).__init__(params, model_dir, run_config)
+    self._evalution_result_dir = os.path.join(self.model_dir, "eval_samples")
+    self._pred_dict = {}
+    self._should_trigger = False
+    self._global_step = None
+    self._eval_str = ""
+    self._source_delimiter = self.params["source_delimiter"]
+    self._target_delimiter = self.params["target_delimiter"]
+
+  @staticmethod
+  def default_params():
+    return {
+        "every_n_secs": None,
+        "every_n_steps": 1000,
+        "source_delimiter": " ",
+        "target_delimiter": " "
+    }
+
+  def begin(self):
+    self._global_step = tf.train.get_global_step()
+    self._eval_str += "Eval samples followed by Target @ Step {}\n".format(self._global_step)
+    self._eval_str += ("=" * 100) + "\n"
+    self._pred_dict = graph_utils.get_dict_from_collection("predictions")
+    self._features = graph_utils.get_dict_from_collection("features")
+
+    # Create the sample directory
+    if self._evalution_result_dir is not None:
+      gfile.MakeDirs(self._evalution_result_dir)
+
+  def before_run(self, _run_context):
+    fetches = {
+          "source_tokens": self._features["source_tokens"],
+          "predicted_tokens": self._pred_dict["predicted_tokens"],
+          "target_words": self._pred_dict["labels.target_tokens"],
+          "target_len": self._pred_dict["labels.target_len"]
+      }
+    return tf.train.SessionRunArgs([fetches, self._global_step])
+
+  def after_run(self, _run_context, run_values):
+    result_dict, step = run_values.results
+
+    # Convert dict of lists to list of dicts
+    result_dicts = [
+        dict(zip(result_dict, t)) for t in zip(*result_dict.values())
+    ]
+
+    # Print results
+    result_str = self._eval_str
+    for result in result_dicts:
+      source_tokens = result["source_tokens"]
+      source_str = self._source_delimiter.encode("utf-8").join(source_tokens).decode("utf-8")
+      target_len = result["target_len"]
+      predicted_slice = result["predicted_tokens"][:target_len - 1]
+      target_slice = result["target_words"][1:target_len]
+      result_str += source_str + "\n"
+      result_str += self._target_delimiter.encode("utf-8").join(
+          target_slice).decode("utf-8") + "\n"
+      result_str += self._target_delimiter.encode("utf-8").join(
+          predicted_slice).decode("utf-8") + "\n"
+
+    self._eval_str = result_str
+
+  def end(self, sess):
+    result_str = self._eval_str
+    result_str += ("=" * 100) + "\n\n"
+    # tf.logging.info(result_str)
+    if self._evalution_result_dir:
+      filepath = os.path.join(self._evalution_result_dir,
+                              "eval_samples_{:06d}.txt".format(self._global_step))
+      with gfile.GFile(filepath, "w") as file:
+          file.write(result_str)
+    self._eval_str = result_str

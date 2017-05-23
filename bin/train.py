@@ -22,6 +22,7 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import os
+import shutil
 import tempfile
 import json
 import yaml
@@ -55,6 +56,9 @@ tf.flags.DEFINE_string("config_paths", "",
 tf.flags.DEFINE_string("hooks", "[]",
                        """YAML configuration string for the
                        training hooks to use.""")
+tf.flags.DEFINE_string("eval_hooks", "[]",
+                       """YAML configuration string for the
+                       eval hooks to use.""")
 tf.flags.DEFINE_string("metrics", "[]",
                        """YAML configuration string for the
                        training metrics to use.""")
@@ -124,7 +128,7 @@ tf.flags.DEFINE_boolean("gpu_allow_growth", False,
                         dynamically.""")
 tf.flags.DEFINE_boolean("log_device_placement", False,
                         """Log the op placement to devices""")
-
+tf.flags.DEFINE_boolean("clear_output_dir",False,"whether output dir[False]")
 
 FLAGS = tf.flags.FLAGS
 
@@ -270,7 +274,7 @@ def create_experiment(output_dir):
       config=config,
       params=FLAGS.model_params)
 
-  # Create hooks
+  # Create train hooks
   train_hooks = []
   for dict_ in FLAGS.hooks:
     hook = _create_from_dict(
@@ -278,6 +282,15 @@ def create_experiment(output_dir):
         model_dir=estimator.model_dir,
         run_config=config)
     train_hooks.append(hook)
+
+  #Create eval hooks
+  eval_hooks = []
+  for dict_ in FLAGS.eval_hooks:
+      hook = _create_from_dict(
+          dict_, hooks,
+          model_dir=estimator.model_dir,
+          run_config=config)
+      eval_hooks.append(hook)
 
   # Create metrics
   eval_metrics = {}
@@ -293,7 +306,9 @@ def create_experiment(output_dir):
       train_steps=FLAGS.train_steps,
       eval_steps=None,
       eval_metrics=eval_metrics,
-      train_monitors=train_hooks)
+      train_monitors=train_hooks,
+      eval_hooks=eval_hooks
+  )
 
   return experiment
 
@@ -358,6 +373,11 @@ def main(_argv):
   tf.logging.warn( "{} 's schdule: {}".format(config.master, schedule) )
 
   tf.logging.warn("flags:",FLAGS.__dict__["__flags"])
+
+  if FLAGS.clear_output_dir is True:
+      if os.path.exists(FLAGS.output_dir) is True:
+          shutil.rmtree(FLAGS.output_dir)
+          tf.logging.debug("rm output dir:{}".format(FLAGS.output_dir))
 
   learn_runner.run(
       experiment_fn=create_experiment,
