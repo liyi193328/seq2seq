@@ -455,6 +455,12 @@ class Experiment(tf.contrib.learn.Experiment):
     elif self._train_steps is not None:
       train_steps_per_iteration = int(self._train_steps / 10)
 
+    config = self._estimator.config
+    if (config.environment != run_config.Environment.LOCAL and
+                  config.environment != run_config.Environment.GOOGLE and
+              config.cluster_spec and config.master):
+        self._start_server()
+
     while (not continuous_eval_predicate_fn or
            continuous_eval_predicate_fn(eval_result)):
 
@@ -463,24 +469,17 @@ class Experiment(tf.contrib.learn.Experiment):
         logging.info("Stop training model as max steps reached")
         break
 
-      config = self._estimator.config
-      if (config.environment != run_config.Environment.LOCAL and
-                  config.environment != run_config.Environment.GOOGLE and
-              config.cluster_spec and config.master):
-          self._start_server()
-
       logging.info("Training model for %s steps", train_steps_per_iteration)
       self._call_train(input_fn=self._train_input_fn,
                        steps=train_steps_per_iteration,
                        hooks=self._train_monitors)
 
       logging.info("Evaluating model now.")
-      with tf.device("/cpu:0"):
-          eval_result = self._call_evaluate(input_fn=self._eval_input_fn,
-                                            steps=self._eval_steps,
-                                            metrics=self._eval_metrics,
-                                            name="one_pass",
-                                            hooks=self._eval_hooks)
+      eval_result = self._call_evaluate(input_fn=self._eval_input_fn,
+                                        steps=self._eval_steps,
+                                        metrics=self._eval_metrics,
+                                        name="one_pass",
+                                        hooks=self._eval_hooks)
       logging.info("End evalution...")
 
     return eval_result, self._maybe_export(eval_result)

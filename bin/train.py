@@ -285,13 +285,15 @@ def create_experiment(output_dir):
 
   #Create eval hooks
   eval_hooks = []
-  for dict_ in FLAGS.eval_hooks:
-      hook = _create_from_dict(
-          dict_, hooks,
-          model_dir=estimator.model_dir,
-          run_config=config)
-      eval_hooks.append(hook)
-
+  if FLAGS.eval_hooks != "[]":
+      for dict_ in FLAGS.eval_hooks:
+          hook = _create_from_dict(
+              dict_, hooks,
+              model_dir=estimator.model_dir,
+              run_config=config)
+          eval_hooks.append(hook)
+          
+  eval_hooks = None
   # Create metrics
   eval_metrics = {}
   for dict_ in FLAGS.metrics:

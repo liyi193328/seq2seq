@@ -10,19 +10,17 @@ echo $4
 
 ##changable according to your data dir and task
 
-echo "must enter the project seq2seq dir, then bash run_scripts/run_yard_xx.sh"
+echo "must enter the project seq2seq dir, then bash run_scripts/local_yard_test.sh"
 
 DATA_ROOT=/mnt/yardcephfs/mmyard/g_wxg_td_prc/turingli/data
 MODEL_NAME=model_yard
 SEQ2SEQ_PROJECT_DIR=${PWD}
 
-#CONFIG_DIR=${SEQ2SEQ_PROJECT_DIR}/example_configs/yard_ques_gen_10w_config
-CONFIG_DIR=${SEQ2SEQ_PROJECT_DIR}/example_configs/yard_ques_gen_all_config
-#TASK_NAME=ques_10w
-TASK_NAME=ques_gen_all
+CONFIG_DIR=${SEQ2SEQ_PROJECT_DIR}/example_configs/yard_ques_gen_10w_config
 echo "config dir: ${CONFIG_DIR}"
 echo "seq2seq project dir: ${SEQ2SEQ_PROJECT_DIR}"
 
+TASK_NAME=ques_10w
 TASK_ROOT=$DATA_ROOT/$TASK_NAME
 DATA_DIR=$TASK_ROOT/data
 VOCAB_SOURCE=$DATA_DIR/vocab/shared.vocab.txt
@@ -38,9 +36,9 @@ MODEL_DIR=${SEQ2SEQ_PROJECT_DIR}/${MODEL_NAME}
 mkdir -p ${MODEL_DIR}
 echo "MODEL_DIR: $MODEL_DIR"
 
-TRAIN_STEPS=5000000
+TRAIN_STEPS=5000
 BATCH_SIZE=64
-EVAL_EVERY_N_STEPS=50000
+EVAL_EVERY_N_STEPS=1000
 
 export PYTHONPATH=${SEQ2SEQ_PROJECT_DIR}:${PYTHONPATH}
 echo "PYTHONPATH: ${PYTHONPATH}"

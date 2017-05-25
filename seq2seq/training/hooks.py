@@ -423,6 +423,7 @@ class EvaluationSaveSampleHook(EvalutionHook):
     self._should_trigger = False
     self._global_step = None
     self._eval_str = ""
+    self._current_global_step = None
     self._source_delimiter = self.params["source_delimiter"]
     self._target_delimiter = self.params["target_delimiter"]
 
@@ -437,8 +438,6 @@ class EvaluationSaveSampleHook(EvalutionHook):
 
   def begin(self):
     self._global_step = tf.train.get_global_step()
-    self._eval_str += "Eval samples followed by Target @ Step {}\n".format(self._global_step)
-    self._eval_str += ("=" * 100) + "\n"
     self._pred_dict = graph_utils.get_dict_from_collection("predictions")
     self._features = graph_utils.get_dict_from_collection("features")
 
@@ -447,6 +446,8 @@ class EvaluationSaveSampleHook(EvalutionHook):
       gfile.MakeDirs(self._evalution_result_dir)
 
   def before_run(self, _run_context):
+    return
+
     fetches = {
           "source_tokens": self._features["source_tokens"],
           "predicted_tokens": self._pred_dict["predicted_tokens"],
@@ -456,36 +457,48 @@ class EvaluationSaveSampleHook(EvalutionHook):
     return tf.train.SessionRunArgs([fetches, self._global_step])
 
   def after_run(self, _run_context, run_values):
+    return
+
     result_dict, step = run_values.results
-
+    if self._current_global_step is None:
+      self._eval_str += "Eval samples followed by Target @ Step {}\n".format(step)
+      self._eval_str += ("=" * 100) + "\n"
     # Convert dict of lists to list of dicts
-    result_dicts = [
-        dict(zip(result_dict, t)) for t in zip(*result_dict.values())
-    ]
+      result_dicts = [
+          dict(zip(result_dict, t)) for t in zip(*result_dict.values())
+      ]
 
-    # Print results
-    result_str = self._eval_str
-    for result in result_dicts:
-      source_tokens = result["source_tokens"]
-      source_str = self._source_delimiter.encode("utf-8").join(source_tokens).decode("utf-8")
-      target_len = result["target_len"]
-      predicted_slice = result["predicted_tokens"][:target_len - 1]
-      target_slice = result["target_words"][1:target_len]
-      result_str += source_str + "\n"
-      result_str += self._target_delimiter.encode("utf-8").join(
-          target_slice).decode("utf-8") + "\n"
-      result_str += self._target_delimiter.encode("utf-8").join(
-          predicted_slice).decode("utf-8") + "\n"
+      # Print results
+      result_str = self._eval_str
+      for result in result_dicts:
+        source_tokens = result["source_tokens"]
+        source_str = self._source_delimiter.encode("utf-8").join(source_tokens).decode("utf-8")
+        target_len = result["target_len"]
+        predicted_slice = result["predicted_tokens"][:target_len - 1]
+        target_slice = result["target_words"][1:target_len]
+        result_str += source_str + "\n"
+        result_str += self._target_delimiter.encode("utf-8").join(
+            target_slice).decode("utf-8") + "\n"
+        result_str += self._target_delimiter.encode("utf-8").join(
+            predicted_slice).decode("utf-8") + "\n\n"
 
-    self._eval_str = result_str
-
-  def end(self, sess):
-    result_str = self._eval_str
-    result_str += ("=" * 100) + "\n\n"
-    # tf.logging.info(result_str)
-    if self._evalution_result_dir:
-      filepath = os.path.join(self._evalution_result_dir,
-                              "eval_samples_{:06d}.txt".format(self._global_step))
-      with gfile.GFile(filepath, "w") as file:
+      self._eval_str = result_str
+      if self._evalution_result_dir:
+        filepath = os.path.join(self._evalution_result_dir,
+                                "eval_samples_{:06d}.txt".format(step))
+        with gfile.GFile(filepath, "w") as file:
           file.write(result_str)
-    self._eval_str = result_str
+
+      self._current_global_step = step
+
+  # def end(self, sess):
+  #   result_str = self._eval_str
+  #   result_str += ("=" * 100) + "\n\n"
+  #   # tf.logging.info(result_str)
+  #   if self._evalution_result_dir:
+  #     filepath = os.path.join(self._evalution_result_dir,
+  #                             "eval_samples_{:06d}.txt".format(self._current_global_step))
+  #     with gfile.GFile(filepath, "w") as file:
+  #         file.write(result_str)
+  #   self._eval_str = ""
+  #   self._current_global_step = None
