@@ -28,10 +28,11 @@ import json
 import yaml
 
 from seq2seq.contrib import estimator as Estimator
+from seq2seq.contrib import learn_runner
+# from tensorflow.contrib.learn.python.learn import learn_runner
 
 import tensorflow
 import tensorflow as tf
-from tensorflow.contrib.learn.python.learn import learn_runner
 from tensorflow.contrib.learn.python.learn.estimators import run_config
 from tensorflow import gfile
 
@@ -191,13 +192,14 @@ def get_run_config():
 
 def get_distributed_schedule(config):
     """
-    return some schedule
+    return some schedule:[train_and_evaluate, continuous_train_and_eval, continuous_eval, run_std_server, train]
     """
     tf.logging.info("begin to get schedule, the run config is:")
     tf.logging.info(config.__dict__)
 
-    if FLAGS.cloud is True and FLAGS.schedule == "default":
+    if FLAGS.cloud is True:
 
+      if FLAGS.schedule == "default":
         if not config.task_type:
             raise ValueError('Must specify a schedule')
 
@@ -206,7 +208,6 @@ def get_distributed_schedule(config):
             # or explicitly disallow such a case.
             return 'continuous_train_and_eval'
             # return "train_and_evaluate"
-            # return "dis_train_and_evaluate"
 
         elif config.task_type == run_config.TaskType.PS:
             return 'run_std_server'
@@ -215,8 +216,11 @@ def get_distributed_schedule(config):
 
         raise ValueError('No default schedule for task type: %s' % (config.task_type))
 
+      else:
+        return FLAGS.schedule
+
     else: #local
-        return "train_and_evaluate"
+        return "continuous_train_and_eval"
 
 
 def create_experiment(output_dir):
@@ -322,7 +326,8 @@ def create_experiment(output_dir):
       eval_steps=None,
       eval_metrics=eval_metrics,
       train_monitors=train_hooks,
-      eval_hooks=eval_hooks
+      eval_hooks=eval_hooks,
+      continuous_eval_throttle_secs=300
   )
 
   return experiment

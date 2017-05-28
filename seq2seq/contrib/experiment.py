@@ -74,10 +74,119 @@ class Experiment(tf.contrib.learn.Experiment):
   training and evaluation), an Experiment instance knows how to invoke training
   and eval loops in a sensible fashion for distributed training.
   """
-  def __init__(self, *args, **kwargs):
-    super(Experiment, self).__init__(*args, **kwargs)
+
+  # TODO(ispir): remove delay_workers_by_global_step and make global step based
+  # waiting as only behavior.
+  @deprecated_args(
+      "2016-10-23",
+      "local_eval_frequency is deprecated as local_run will be renamed to "
+      "train_and_evaluate. Use min_eval_frequency and call train_and_evaluate "
+      "instead. Note, however, that the default for min_eval_frequency is 1, "
+      "meaning models will be evaluated every time a new checkpoint is "
+      "available. In contrast, the default for local_eval_frequency is None, "
+      "resulting in evaluation occurring only after training has completed. "
+      "min_eval_frequency is ignored when calling the deprecated local_run.",
+      "local_eval_frequency")
+  def __init__(self,
+               estimator,
+               train_input_fn,
+               eval_input_fn,
+               eval_metrics=None,
+               train_steps=None,
+               eval_steps=100,
+               train_monitors=None,
+               eval_hooks=None,
+               local_eval_frequency=None,
+               eval_delay_secs=120,
+               continuous_eval_throttle_secs=60,
+               min_eval_frequency=None,
+               delay_workers_by_global_step=False,
+               export_strategies=None,
+               train_steps_per_iteration=None):
+    """Constructor for `Experiment`.
+
+    Creates an Experiment instance. None of the functions passed to this
+    constructor are executed at construction time. They are stored and used
+    when a method is executed which requires it.
+
+    Args:
+      estimator: Object implementing Estimator interface, which could be a
+        combination of ${tf.contrib.learn.Trainable} and
+        ${tf.contrib.learn.Evaluable} (deprecated), or
+        ${tf.estimator.`Estimator}.
+      train_input_fn: function, returns features and labels for training.
+      eval_input_fn: function, returns features and labels for evaluation. If
+        `eval_steps` is `None`, this should be configured only to produce for a
+        finite number of batches (generally, 1 epoch over the evaluation data).
+      eval_metrics: `dict` of string, metric function. If `None`, default set
+        is used. This should be `None` if the `estimator` is
+        ${tf.estimator.Estimator}. If metrics are provided they will be
+        *appended* to the default set.
+      train_steps: Perform this many steps of training. `None`, the default,
+        means train forever.
+      eval_steps: `evaluate` runs until input is exhausted (or another exception
+        is raised), or for `eval_steps` steps, if specified.
+      train_monitors: A list of monitors to pass to the `Estimator`'s `fit`
+        function.
+      eval_hooks: A list of `SessionRunHook` hooks to pass to the
+        `Estimator`'s `evaluate` function.
+      local_eval_frequency: (applies only to local_run) Frequency of running
+        eval in steps. If `None`, runs evaluation only at the end of training.
+      eval_delay_secs: Start evaluating after waiting for this many seconds.
+      continuous_eval_throttle_secs: Do not re-evaluate unless the last
+        evaluation was started at least this many seconds ago for
+        continuous_eval().
+      min_eval_frequency: (applies only to train_and_evaluate). the minimum
+        number of steps between evaluations. Of course, evaluation does not
+        occur if no new snapshot is available, hence, this is the minimum.
+        If 0, the evaluation will only happen after training.
+        If None, defaults to 1, unless model_dir is on GCS, in which case the
+        default is 1000.
+      delay_workers_by_global_step: if `True` delays training workers
+        based on global step instead of time.
+      export_strategies: Iterable of `ExportStrategy`s, or a single one, or
+        `None`.
+      train_steps_per_iteration: (applies only to continuous_train_and_eval).
+        Perform this many (integer) number of train steps for each
+        training-evaluation iteration. With a small value, the model will be
+        evaluated more frequently with more checkpoints saved. If `None`, will
+        use a default value (which is smaller than `train_steps` if provided).
+
+    Raises:
+      ValueError: if `estimator` does not implement Estimator interface,
+        or if export_strategies has the wrong type.
+    """
+
     self._core_estimator_used = False
-    self._train_steps_per_iteration=None
+    super(Experiment, self).__init__()
+
+    # Immutable fields.
+    self._estimator = estimator
+    self._train_input_fn = train_input_fn
+    self._eval_input_fn = eval_input_fn
+    self._eval_metrics = eval_metrics
+    self._train_steps = train_steps
+    self._eval_steps = eval_steps
+    self._local_eval_frequency = local_eval_frequency
+    self._eval_delay_secs = eval_delay_secs
+    self._continuous_eval_throttle_secs = continuous_eval_throttle_secs
+    # Using 1 on a non-cached file system requires a lot of overhead to
+    # read the checkpoint state file. This is particular bad on GCS, so
+    # we use a different default. This is a temporary band-aid, to be
+    # fixed holistically later (b/36498507).
+    default_min_eval_frequency = 1000 if _is_gcs(estimator.model_dir) else 1
+    self._min_eval_frequency = min_eval_frequency if (
+        min_eval_frequency is not None) else default_min_eval_frequency
+    self._delay_workers_by_global_step = delay_workers_by_global_step
+    self._train_monitors = train_monitors[:] if train_monitors else []
+    self._eval_hooks = eval_hooks[:] if eval_hooks else []
+    self._set_export_strategies(export_strategies)
+
+    self._train_steps_per_iteration = train_steps_per_iteration
+    if (self._train_steps_per_iteration is not None and
+        not isinstance(self._train_steps_per_iteration, int)):
+      raise ValueError(
+          "`train_steps_per_iteration` must be an integer.")
 
   @property
   def estimator(self):
