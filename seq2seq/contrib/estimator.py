@@ -71,7 +71,7 @@ from tensorflow.python.training import saver
 from tensorflow.python.training import session_run_hook
 from tensorflow.python.training import summary_io
 from tensorflow.python.util import compat
-from seq2seq.contrib import monitored_session
+from seq2seq.contrib.m import monitored_session
 
 
 AS_ITERABLE_DATE = '2016-09-15'
