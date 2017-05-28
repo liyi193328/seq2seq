@@ -334,6 +334,13 @@ class Experiment(tf.contrib.learn.Experiment):
                       throttle_delay_secs=None,
                       evaluate_checkpoint_only_once=True,
                       continuous_eval_predicate_fn=None):
+
+    config = self._estimator.config
+    if (config.environment != run_config.Environment.LOCAL and
+        config.environment != run_config.Environment.GOOGLE and
+        config.cluster_spec and config.master):
+      self._start_server()
+
     self._continuous_eval(
         self._eval_input_fn,
         name="continuous",
