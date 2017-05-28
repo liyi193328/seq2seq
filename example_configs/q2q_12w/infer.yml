@@ -10,9 +10,9 @@ input_pipeline:
   class: ParallelTextInputPipeline
   params:
     source_files:
-#      - /home/bigdata/active_project/test_seq2seq_py2/yard_seq2seq/data/q2q_12w/data/test/sources.txt
-      - /home/bigdata/active_project/test_seq2seq_py2/yard_seq2seq/data/own_questions.txt
+      - /home/bigdata/active_project/test_seq2seq_py2/yard_seq2seq/data/q2q_12w_cancel_dup/data/test/sources.txt
+     # - /home/bigdata/active_project/test_seq2seq_py2/yard_seq2seq/data/own_questions.txt
 #model_params:
 #  inference.beam_search.beam_width: 10
 
-model_dir: "/home/bigdata/active_project/test_seq2seq_py2/yard_seq2seq/data/q2q_12w/model/test0"
+model_dir: "/home/bigdata/active_project/test_seq2seq_py2/yard_seq2seq/data/q2q_12w_cancel_dup/model/test0"
