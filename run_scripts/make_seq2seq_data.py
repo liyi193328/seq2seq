@@ -133,29 +133,21 @@ def generate_vocb(script_path, tokenized_file, vocb_path):
     print(r)
     filter_illegal(vocb_path)
 
-if __name__ == '__main__':
+def main(source_data_path, save_data_dir,sample_size=None):
 
-    # source_path = join(data_dir, "stc_weibo_train_post")
-    # target_path = join(data_dir, "stc_weibo_train_response")
-    # sample_sources, sample_targets = sample_pairs(source_path, target_path, sample_size)
-    # make_train_test_dev(sample_sources, sample_targets, ".")
+    from os.path import join
 
-    sample_size = 500000
-    sample_size = None
-    all_pairs_file = "./question_gen/wenda_q2q.seg"
-    app="question_gen_all"
+    sample_sources, sample_targets = sample_ques_pairs(source_data_path, sample_size)
+    make_train_test_dev(sample_sources, sample_targets, save_data_dir, ratio_split=[0.9,0.95,1.0])
 
-    sample_sources, sample_targets = sample_ques_pairs(all_pairs_file, sample_size)
-    make_train_test_dev(sample_sources, sample_targets, "./{app}".format(app=app))
+    train_source_path = join(save_data_dir, "train/sources.txt")
+    train_source_vocab_path = join(save_data_dir, "vocab/vocab.sources.txt")
 
-    train_source_path = "./{app}/train/sources.txt".format(app=app)
-    train_source_vocab_path = "./{app}/vocab/vocab.sources.txt".format(app=app)
+    train_target_path = join(save_data_dir, "train/targets.txt")
+    train_target_vocab_path = join(save_data_dir, "vocab/vocab.sources.txt")
 
-    train_target_path = "./{app}/train/targets.txt".format(app=app)
-    train_target_vocab_path = "./{app}/vocab/vocab.sources.txt".format(app=app)
-
-    merge_path = "./{app}/train/merge_train_target.txt".format(app=app)
-    shared_vocab_path = "./{app}/vocab/shared.vocab.txt".format(app=app)
+    merge_path = join(save_data_dir, "train/merge_train_target.txt")
+    shared_vocab_path = join(save_data_dir, "vocab/shared.vocab.txt")
 
     merge_files([train_source_path, train_target_path], merge_path)
 
@@ -163,4 +155,32 @@ if __name__ == '__main__':
 
     os.remove(merge_path)
 
-    generate_vocb(generate_vocb_script_path, train_target_path,train_target_vocab_path)
+def filter_pos(file_path, save_path):
+    f = codecs.open(file_path, "r","utf-8")
+    lines = f.readlines(f)
+    f.close()
+    f = codecs.open(save_path, "w", "utf-8")
+    new_lines = []
+    for line in lines:
+      t = line.strip().split("\t")
+      try:
+        if int(t[0]) == 1:
+          x = "\t".join([t[1], t[2]]) + "\n"
+          f.write(x)
+      except Exception:
+        print("error:", line)
+    f.close()
+
+if __name__ == '__main__':
+
+    # source_path = join(data_dir, "stc_weibo_train_post")
+    # target_path = join(data_dir, "stc_weibo_train_response")
+    # sample_sources, sample_targets = sample_pairs(source_path, target_path, sample_size)
+    # make_train_test_dev(sample_sources, sample_targets, ".")
+
+    # filter_pos("../data/q2q_all.train", "../data/q2q_pos.train")
+
+    app="q2q_12w"
+
+    main("../data/q2q_pos.train","../data/{}".format(app))
+

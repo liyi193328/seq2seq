@@ -12,19 +12,33 @@ echo $4
 
 echo "must enter the project seq2seq dir, then bash run_scripts/run_yard_xx.sh"
 
-DATA_ROOT=/mnt/yardcephfs/mmyard/g_wxg_td_prc/turingli/data
-MODEL_NAME=model_yard
 SEQ2SEQ_PROJECT_DIR=${PWD}
 
-#CONFIG_DIR=${SEQ2SEQ_PROJECT_DIR}/example_configs/yard_ques_gen_10w_config
-CONFIG_DIR=${SEQ2SEQ_PROJECT_DIR}/example_configs/yard_ques_gen_all_config
+DATA_ROOT=${DATA_ROOT:=/mnt/yardcephfs/mmyard/g_wxg_td_prc/turingli/data}
+MODEL_DIR_ROOT=${MODEL_DIR_ROOT:=/mnt/yardcephfs/mmyard/g_wxg_td_prc/turingli/model}
+
 #TASK_NAME=ques_10w
-TASK_NAME=ques_gen_all
+TASK_NAME=${TASK_NAME:=ques_gen_all}
+#yard_ques_gen_10w_config
+CONFIG_APP_NAME=${CONFIG_APP_NAME:=yard_ques_gen_10w_config}
+CONFIG_DIR=${SEQ2SEQ_PROJECT_DIR}/example_configs/${CONFIG_APP_NAME}
+
+echo "TASK_NAME=${TASK_NAME} must contain in config_dir and data_dir"
 echo "config dir: ${CONFIG_DIR}"
 echo "seq2seq project dir: ${SEQ2SEQ_PROJECT_DIR}"
 
+MAYBE_MODEL_DIR={MODEL_DIR_ROOT}/${TASK_NAME}
+MODEL_DIR=${MODEL_DIR:=$MAYBE_MODEL_DIR}
+
+mkdir -p ${MODEL_DIR}
+echo "MODEL_DIR: $MODEL_DIR"
+
 TASK_ROOT=$DATA_ROOT/$TASK_NAME
 DATA_DIR=$TASK_ROOT/data
+echo "DATA_DIR: ${DATA_DIR}"
+
+CLEAR_OUTPUT_DIR=${CLEAR_OUTPUT_DIR:=False}
+
 VOCAB_SOURCE=$DATA_DIR/vocab/shared.vocab.txt
 VOCAB_SOURCE=$DATA_DIR/vocab/shared.vocab.txt
 TRAIN_SOURCES=$DATA_DIR/train/sources.txt
@@ -34,13 +48,15 @@ DEV_TARGETS=$DATA_DIR/dev/targets.txt
 TEST_SOURCES=$DATA_DIR/test/sources.txt
 TEST_TARGETS=$DATA_DIR/test/targets.txt
 
-MODEL_DIR=${SEQ2SEQ_PROJECT_DIR}/${MODEL_NAME}
-mkdir -p ${MODEL_DIR}
-echo "MODEL_DIR: $MODEL_DIR"
+TRAIN_STEPS=${TRAIN_STEPS:=5000000}
+BATCH_SIZE=${BATCH_SIZE:=64}
+EVAL_EVERY_N_STEPS=${EVAL_EVERY_N_STEPS:=10000}
 
-TRAIN_STEPS=5000000
-BATCH_SIZE=64
-EVAL_EVERY_N_STEPS=50000
+echo "#########"
+echo "TRAIN_STEPS:$TRAIN_STEPS"
+echo "BATCH_SIZE:$BATCH_SIZE"
+echo "EVAL_EVERY_N_STEPS: $EVAL_EVERY_N_STEPS"
+echo "#########"
 
 export PYTHONPATH=${SEQ2SEQ_PROJECT_DIR}:${PYTHONPATH}
 echo "PYTHONPATH: ${PYTHONPATH}"
@@ -64,25 +80,7 @@ python -m bin.train \
   --batch_size=$BATCH_SIZE \
   --train_steps=$TRAIN_STEPS \
   --eval_every_n_steps=${EVAL_EVERY_N_STEPS} \
-  --output_dir=$MODEL_DIR
+  --output_dir=$MODEL_DIR \
+  --clear_output_dir=${CLEAR_OUTPUT_DIR}
 
-#PRED_DIR=$TASK_ROOT/predict
-#mkdir -p $PRED_DIR
 
-#python -m bin.infer \
-#  --tasks "
-#    - class: DecodeText
-#      params:
-#        unk_replace: True
-#    - class: DumpBeams
-#      params:
-#        file: ${PRED_DIR}/beams.npz" \
-#  --model_dir $MODEL_DIR \
-#  --model_params "
-#    inference.beam_search.beam_width: 5" \
-#  --input_pipeline "
-#    class: ParallelTextInputPipeline
-#    params:
-#      source_files:
-#        - $DEV_SOURCES" \
-#  > ${PRED_DIR}/predictions.txt

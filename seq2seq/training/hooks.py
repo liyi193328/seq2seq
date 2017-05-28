@@ -440,14 +440,16 @@ class EvaluationSaveSampleHook(EvalutionHook):
     self._global_step = tf.train.get_global_step()
     self._pred_dict = graph_utils.get_dict_from_collection("predictions")
     self._features = graph_utils.get_dict_from_collection("features")
-
+    self._iter_count = 0
+    self._eval_str = ""
+    self._current_global_step = None
     # Create the sample directory
     if self._evalution_result_dir is not None:
       gfile.MakeDirs(self._evalution_result_dir)
 
   def before_run(self, _run_context):
-    return
-
+    tf.logging.info("eval {}_th batch start...".format(self._iter_count))
+    self._iter_count += 1
     fetches = {
           "source_tokens": self._features["source_tokens"],
           "predicted_tokens": self._pred_dict["predicted_tokens"],
@@ -457,7 +459,8 @@ class EvaluationSaveSampleHook(EvalutionHook):
     return tf.train.SessionRunArgs([fetches, self._global_step])
 
   def after_run(self, _run_context, run_values):
-    return
+
+    tf.logging.info("eval {}_th batch end!".format(self._iter_count))
 
     result_dict, step = run_values.results
     if self._current_global_step is None:

@@ -49,7 +49,7 @@ from tensorflow.contrib.framework import deprecated_args
 from tensorflow.contrib.framework.python.framework import experimental
 from tensorflow.contrib.learn.python.learn import evaluable
 from tensorflow.contrib.learn.python.learn import export_strategy
-from tensorflow.contrib.learn.python.learn import monitors
+
 from tensorflow.contrib.learn.python.learn import trainable
 from tensorflow.contrib.learn.python.learn.estimators import run_config
 
@@ -60,6 +60,9 @@ from tensorflow.python.training import saver
 from tensorflow.python.training import server_lib
 from tensorflow.python.util import compat
 
+# from tensorflow.contrib.learn.python.learn import monitors
+
+from seq2seq.contrib import monitors
 
 __all__ = ["Experiment"]
 
@@ -475,11 +478,12 @@ class Experiment(tf.contrib.learn.Experiment):
                        hooks=self._train_monitors)
 
       logging.info("Evaluating model now.")
-      eval_result = self._call_evaluate(input_fn=self._eval_input_fn,
-                                        steps=self._eval_steps,
-                                        metrics=self._eval_metrics,
-                                        name="one_pass",
-                                        hooks=self._eval_hooks)
+      with tf.get_default_graph().as_default():
+        eval_result = self._call_evaluate(input_fn=self._eval_input_fn,
+                                          steps=self._eval_steps,
+                                          metrics=self._eval_metrics,
+                                          name="one_pass",
+                                          hooks=self._eval_hooks)
       logging.info("End evalution...")
 
     return eval_result, self._maybe_export(eval_result)

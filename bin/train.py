@@ -27,6 +27,8 @@ import tempfile
 import json
 import yaml
 
+from seq2seq.contrib import estimator as Estimator
+
 import tensorflow
 import tensorflow as tf
 from tensorflow.contrib.learn.python.learn import learn_runner
@@ -98,6 +100,9 @@ tf.flags.DEFINE_integer("train_steps", None,
                          If None, train forever.""")
 tf.flags.DEFINE_integer("eval_every_n_steps", 1000,
                         "Run evaluation on validation data every N steps.")
+
+# tf.flags.DEFINE_integer("set_eval_node", None,
+#                         "if not None, eval worker's index")
 
 # RunConfig Flags
 tf.flags.DEFINE_integer("tf_random_seed", None,
@@ -211,7 +216,7 @@ def get_distributed_schedule(config):
         raise ValueError('No default schedule for task type: %s' % (config.task_type))
 
     else: #local
-        return "continuous_train_and_eval"
+        return "train_and_evaluate"
 
 
 def create_experiment(output_dir):
@@ -268,11 +273,18 @@ def create_experiment(output_dir):
     }, models, mode=mode)
     return model(features, labels, params)
 
-  estimator = tf.contrib.learn.Estimator(
+  estimator = Estimator.Estimator(
       model_fn=model_fn,
       model_dir=output_dir,
       config=config,
       params=FLAGS.model_params)
+
+  # estimator = tf.contrib.learn.Estimator(
+  #     model_fn=model_fn,
+  #     model_dir=output_dir,
+  #     config=config,
+  #     params=FLAGS.model_params)
+
 
   # Create train hooks
   train_hooks = []
@@ -293,7 +305,8 @@ def create_experiment(output_dir):
               run_config=config)
           eval_hooks.append(hook)
           
-  eval_hooks = None
+  # eval_hooks = None
+
   # Create metrics
   eval_metrics = {}
   for dict_ in FLAGS.metrics:

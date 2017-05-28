@@ -23,11 +23,13 @@ from __future__ import unicode_literals
 import functools
 from pydoc import locate
 
+import codecs
 import numpy as np
 
 import tensorflow as tf
 from tensorflow import gfile
 
+from seq2seq import graph_utils
 from seq2seq.tasks.inference_task import InferenceTask, unbatch_dict
 
 
@@ -115,6 +117,7 @@ class DecodeText(InferenceTask):
 
     if self.params["unk_mapping"] is not None:
       self._unk_mapping = _get_unk_mapping(self.params["unk_mapping"])
+    self._save_pred_path = self.params["save_pred_path"]
     if self.params["unk_replace"]:
       self._unk_replace_fn = functools.partial(
           _unk_replace, mapping=self._unk_mapping)
@@ -134,15 +137,20 @@ class DecodeText(InferenceTask):
         "postproc_fn": "",
         "unk_replace": False,
         "unk_mapping": None,
+        "save_pred_path": None
     })
     return params
+
+  def begin(self):
+    self._predictions = graph_utils.get_dict_from_collection("predictions")
+    if self._save_pred_path is not None:
+      self._pred_fout = codecs.open(self._save_pred_path, "w", "utf-8")
 
   def before_run(self, _run_context):
     fetches = {}
     fetches["predicted_tokens"] = self._predictions["predicted_tokens"]
     fetches["features.source_len"] = self._predictions["features.source_len"]
-    fetches["features.source_tokens"] = self._predictions[
-        "features.source_tokens"]
+    fetches["features.source_tokens"] = self._predictions["features.source_tokens"]
 
     if "attention_scores" in self._predictions:
       fetches["attention_scores"] = self._predictions["attention_scores"]
@@ -185,4 +193,14 @@ class DecodeText(InferenceTask):
 
       sent = sent.strip()
 
-      print(sent)
+      source_sent = self.params["delimiter"].join(source_tokens)
+
+      if self._save_pred_path is not None:
+        self._pred_fout.write(source_sent + "\n" + sent + "\n\n")
+      else:
+        print(source_sent + "\n" + sent + "\n\n")
+
+
+    def end(self, session):
+      if self._save_pred_path is not None:
+        self._pred_fout.close()

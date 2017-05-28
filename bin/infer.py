@@ -24,6 +24,8 @@ from __future__ import unicode_literals
 from pydoc import locate
 
 import yaml
+import seq2seq
+
 from six import string_types
 
 import tensorflow as tf
@@ -53,6 +55,7 @@ tf.flags.DEFINE_string("checkpoint_path", None,
                        """Full path to the checkpoint to be loaded. If None,
                        the latest checkpoint in the model dir is used.""")
 tf.flags.DEFINE_integer("batch_size", 32, "the train/dev batch size")
+tf.flags.DEFINE_string("save_pred_path", None, "save pred path[None], None is print only")
 
 FLAGS = tf.flags.FLAGS
 
@@ -95,6 +98,8 @@ def main(_argv):
   for tdict in FLAGS.tasks:
     if not "params" in tdict:
       tdict["params"] = {}
+    if tdict["class"] == "DecodeText":
+      tdict["params"]["save_pred_path"] = FLAGS.save_pred_path
     task_cls = locate(tdict["class"]) or getattr(tasks, tdict["class"])
     task = task_cls(tdict["params"])
     hooks.append(task)

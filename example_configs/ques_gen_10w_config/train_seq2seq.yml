@@ -7,8 +7,8 @@ hooks:
     params:
       every_n_steps: 4000
 
-eval_hooks:
-  - class: EvaluationSaveSampleHook
+#eval_hooks:
+#  - class: EvaluationSaveSampleHook
 
 input_pipeline_train:
   class: ParallelTextInputPipeline
