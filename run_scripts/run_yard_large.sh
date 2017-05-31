@@ -61,26 +61,5 @@ echo "#########"
 export PYTHONPATH=${SEQ2SEQ_PROJECT_DIR}:${PYTHONPATH}
 echo "PYTHONPATH: ${PYTHONPATH}"
 
-cd ${SEQ2SEQ_PROJECT_DIR}
-echo "now in dir:$PWD, begin to train model"
-
-python -m bin.train \
-  --config_paths="
-      $CONFIG_DIR/nmt_small.yml,
-      $CONFIG_DIR/train_seq2seq.yml,
-      $CONFIG_DIR/text_metrics_bpe.yml" \
-  $1 \
-  $2 \
-  $3 \
-  $4 \
-  --allow_soft_placement=True \
-  --gpu_allow_growth=True \
-  --cloud=True \
-  --schedule="default" \
-  --batch_size=$BATCH_SIZE \
-  --train_steps=$TRAIN_STEPS \
-  --eval_every_n_steps=${EVAL_EVERY_N_STEPS} \
-  --output_dir=$MODEL_DIR \
-  --clear_output_dir=${CLEAR_OUTPUT_DIR}
 
 
