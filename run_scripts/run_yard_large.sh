@@ -39,22 +39,21 @@ TASK_NAME=${TASK_NAME:=ques_gen_all}
 MODEL_NAME=${MODEL_NAME:=model0}
 
 DATA_ROOT=${DATA_ROOT:=/mnt/yardcephfs/mmyard/g_wxg_td_prc/turingli}
-MODEL_DIR_ROOT=${MODEL_DIR_ROOT:=/mnt/yardcephfs/mmyard/g_wxg_td_prc/turingli/model}
-
+DEFAULT_MODEL_ROOT=$DATA_ROOT/${TASK_NAME}/model
+MODEL_DIR_ROOT=${MODEL_DIR_ROOT:=$DEFAULT_MODEL_ROOT}
+MAYBE_MODEL_DIR={MODEL_DIR_ROOT}/${MODEL_NAME}
+MODEL_DIR=${MODEL_DIR:=$MAYBE_MODEL_DIR}
+mkdir -p ${MODEL_DIR}
+echo "MODEL_DIR: $MODEL_DIR"
 
 #yard_ques_gen_10w_config
 CONFIG_APP_NAME=${CONFIG_APP_NAME:=yard_ques_gen_10w_config}
-CONFIG_DIR=${SEQ2SEQ_PROJECT_DIR}/example_configs/${CONFIG_APP_NAME}
+MAYBE_CONFIG_DIR=${SEQ2SEQ_PROJECT_DIR}/example_configs/${CONFIG_APP_NAME}
+CONFIG_DIR=${CONFIG_DIR:=$MAYBE_CONFIG_DIR}
 
 echo "TASK_NAME=${TASK_NAME} must contain in config_dir and data_dir"
 echo "config dir: ${CONFIG_DIR}"
 echo "seq2seq project dir: ${SEQ2SEQ_PROJECT_DIR}"
-
-MAYBE_MODEL_DIR={MODEL_DIR_ROOT}/${MODEL_NAME}
-MODEL_DIR=${MODEL_DIR:=$MAYBE_MODEL_DIR}
-
-mkdir -p ${MODEL_DIR}
-echo "MODEL_DIR: $MODEL_DIR"
 
 TASK_ROOT=$DATA_ROOT/$TASK_NAME
 DATA_DIR=$TASK_ROOT/data
