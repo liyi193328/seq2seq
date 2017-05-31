@@ -51,7 +51,8 @@ def call_infer_fn(yaml_conf_path, source_path, model_dir, save_dir, config, save
   )
   print("lanch: {}".format(cmd))
 
-  res = subprocess.run(cmd,shell=True,universal_newlines=True,cwd=project_root, env=my_env)
+  pro = subprocess.Popen(cmd,stdout=subprocess.PIPE, stdin=subprocess.PIPE, shell=True,universal_newlines=True,cwd=project_root, env=my_env)
+  res = pro.communicate()
   print(res)
 
   return
