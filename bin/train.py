@@ -201,12 +201,13 @@ def get_distributed_schedule(config):
       if FLAGS.schedule == "default":
         if not config.task_type:
             raise ValueError('Must specify a schedule')
-        if FLAGS.set_eval_node is not None and config.task_id == FLAGS.set_val_node:
+        if FLAGS.set_eval_node is not None and config.task_id == FLAGS.set_eval_node:
           return "continuous_eval"
         if config.is_chief:
             # TODO(rhaertel): handle the case where there is more than one master
             # or explicitly disallow such a case.
-            return 'continuous_train_and_eval'
+            return "train"
+            # return 'continuous_train_and_eval'
             # return "train_and_evaluate"
         elif config.task_type == run_config.TaskType.PS:
             return 'run_std_server'
