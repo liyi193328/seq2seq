@@ -102,8 +102,8 @@ tf.flags.DEFINE_integer("train_steps", None,
 tf.flags.DEFINE_integer("eval_every_n_steps", 1000,
                         "Run evaluation on validation data every N steps.")
 
-# tf.flags.DEFINE_integer("set_eval_node", None,
-#                         "if not None, eval worker's index")
+tf.flags.DEFINE_integer("set_eval_node", None,
+                        "if not None, eval worker's index(0 is chief worker, so it must > 0)")
 
 # RunConfig Flags
 tf.flags.DEFINE_integer("tf_random_seed", None,
@@ -198,24 +198,26 @@ def get_distributed_schedule(config):
     tf.logging.info(config.__dict__)
 
     if FLAGS.cloud is True:
-
       if FLAGS.schedule == "default":
+
         if not config.task_type:
             raise ValueError('Must specify a schedule')
+
+        if FLAGS.set_eval_node is not None and config.task_id == FLAGS.set_eval_node:
+          if config.task_type == run_config.TaskType.WORKER:
+            return "continuous_eval"
 
         if config.is_chief:
             # TODO(rhaertel): handle the case where there is more than one master
             # or explicitly disallow such a case.
-            return 'continuous_train_and_eval'
+            return "train"
+            # return 'continuous_train_and_eval'
             # return "train_and_evaluate"
-
         elif config.task_type == run_config.TaskType.PS:
             return 'run_std_server'
         elif config.task_type == run_config.TaskType.WORKER:
             return 'train'
-
         raise ValueError('No default schedule for task type: %s' % (config.task_type))
-
       else:
         return FLAGS.schedule
 

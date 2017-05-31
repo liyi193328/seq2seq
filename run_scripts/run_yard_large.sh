@@ -1,5 +1,26 @@
 #! /bin/bash/ env
 
+#data organized:
+#data_root/task_name:
+#        -data
+#            -vocab
+#            -train
+#            -dev
+#            -test
+#                -sources.txt
+#                -sources.txt
+#        -model
+#            -model_name0
+#                ...
+#            -model_name1
+#                ...
+#        -predict
+#            -model_name
+#                - prediction.steps0.txt
+#                - predictions.steps1.txt
+
+
+##every time, watch out task_name, model_name, config_app_name##
 
 echo "getting cluster info:"
 echo $1
@@ -13,25 +34,26 @@ echo $4
 echo "must enter the project seq2seq dir, then bash run_scripts/run_yard_xx.sh"
 
 SEQ2SEQ_PROJECT_DIR=${PWD}
-
-DATA_ROOT=${DATA_ROOT:=/mnt/yardcephfs/mmyard/g_wxg_td_prc/turingli/data}
-MODEL_DIR_ROOT=${MODEL_DIR_ROOT:=/mnt/yardcephfs/mmyard/g_wxg_td_prc/turingli/model}
-
 #TASK_NAME=ques_10w
 TASK_NAME=${TASK_NAME:=ques_gen_all}
+MODEL_NAME=${MODEL_NAME:=model0}
+
+DATA_ROOT=${DATA_ROOT:=/mnt/yardcephfs/mmyard/g_wxg_td_prc/turingli}
+DEFAULT_MODEL_ROOT=$DATA_ROOT/${TASK_NAME}/model
+MODEL_DIR_ROOT=${MODEL_DIR_ROOT:=$DEFAULT_MODEL_ROOT}
+MAYBE_MODEL_DIR={MODEL_DIR_ROOT}/${MODEL_NAME}
+MODEL_DIR=${MODEL_DIR:=$MAYBE_MODEL_DIR}
+mkdir -p ${MODEL_DIR}
+echo "MODEL_DIR: $MODEL_DIR"
+
 #yard_ques_gen_10w_config
 CONFIG_APP_NAME=${CONFIG_APP_NAME:=yard_ques_gen_10w_config}
-CONFIG_DIR=${SEQ2SEQ_PROJECT_DIR}/example_configs/${CONFIG_APP_NAME}
+MAYBE_CONFIG_DIR=${SEQ2SEQ_PROJECT_DIR}/example_configs/${CONFIG_APP_NAME}
+CONFIG_DIR=${CONFIG_DIR:=$MAYBE_CONFIG_DIR}
 
 echo "TASK_NAME=${TASK_NAME} must contain in config_dir and data_dir"
 echo "config dir: ${CONFIG_DIR}"
 echo "seq2seq project dir: ${SEQ2SEQ_PROJECT_DIR}"
-
-MAYBE_MODEL_DIR={MODEL_DIR_ROOT}/${TASK_NAME}
-MODEL_DIR=${MODEL_DIR:=$MAYBE_MODEL_DIR}
-
-mkdir -p ${MODEL_DIR}
-echo "MODEL_DIR: $MODEL_DIR"
 
 TASK_ROOT=$DATA_ROOT/$TASK_NAME
 DATA_DIR=$TASK_ROOT/data
@@ -51,6 +73,8 @@ TEST_TARGETS=$DATA_DIR/test/targets.txt
 TRAIN_STEPS=${TRAIN_STEPS:=5000000}
 BATCH_SIZE=${BATCH_SIZE:=64}
 EVAL_EVERY_N_STEPS=${EVAL_EVERY_N_STEPS:=10000}
+SAVE_CHECK_SECS=${SAVE_CHECK_SECS:=1200}
+KEEP_CHECK_MAX=${KEEP_CHECK_MAX:=10}
 
 echo "#########"
 echo "TRAIN_STEPS:$TRAIN_STEPS"
@@ -81,6 +105,9 @@ python -m bin.train \
   --train_steps=$TRAIN_STEPS \
   --eval_every_n_steps=${EVAL_EVERY_N_STEPS} \
   --output_dir=$MODEL_DIR \
-  --clear_output_dir=${CLEAR_OUTPUT_DIR}
+  --clear_output_dir=${CLEAR_OUTPUT_DIR} \
+  --save_checkpoints_secs=$SAVE_CHECK_SECS \
+  --keep_checkpoint_max=$KEEP_CHECK_MAX \
+  --set_eval_node=1
 
 
