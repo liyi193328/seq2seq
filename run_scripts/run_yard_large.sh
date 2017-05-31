@@ -108,6 +108,6 @@ python -m bin.train \
   --clear_output_dir=${CLEAR_OUTPUT_DIR}
   --save_checkpoints_secs=$SAVE_CHECK_SECS \
   --keep_checkpoint_max=$KEEP_CHECK_MAX \
-  --set_eval_node=1 \
+  --set_eval_node=1
 
 

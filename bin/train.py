@@ -199,10 +199,14 @@ def get_distributed_schedule(config):
 
     if FLAGS.cloud is True:
       if FLAGS.schedule == "default":
+
         if not config.task_type:
             raise ValueError('Must specify a schedule')
+
         if FLAGS.set_eval_node is not None and config.task_id == FLAGS.set_eval_node:
-          return "continuous_eval"
+          if config.task_type == run_config.TaskType.WORKER:
+            return "continuous_eval"
+
         if config.is_chief:
             # TODO(rhaertel): handle the case where there is more than one master
             # or explicitly disallow such a case.
