@@ -23,6 +23,7 @@ from __future__ import unicode_literals
 
 from pydoc import locate
 
+import os
 import yaml
 import seq2seq
 
@@ -93,6 +94,11 @@ def main(_argv):
       params=model_params,
       mode=tf.contrib.learn.ModeKeys.INFER)
 
+  #get static global steps from checkpoint path
+  ckpt = ckpt = tf.train.get_checkpoint_state(FLAGS.model_dir)
+  global_steps = int(os.path.basename(ckpt.model_checkpoint_path).split('-')[1])
+  if FLAGS.save_pred_path is not None:
+    FLAGS.save_pred_path = FLAGS.save_pred_path + "." + str(global_steps)
   # Load inference tasks
   hooks = []
   for tdict in FLAGS.tasks:

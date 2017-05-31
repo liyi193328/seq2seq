@@ -166,6 +166,7 @@ class AttentionDecoder(RNNDecoder):
     cell_output_new, logits, attention_scores, attention_context = \
       self.compute_output(cell_output)
 
+
     if self.reverse_scores_lengths is not None:
       attention_scores = tf.reverse_sequence(
           input=attention_scores,

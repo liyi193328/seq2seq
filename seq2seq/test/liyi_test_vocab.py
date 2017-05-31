@@ -45,8 +45,20 @@ def t(filename, default_value=None):
     vocab = list(vocab)
   return vocab
 
+class f(object):
+
+  def __init__(self,x,y):
+    self._x = x
+    self._y = y
+
+  def _build(self, c,d):
+    print("in build")
+    print(c, d)
+
 if __name__ == "__main__":
-    t(r"E:\active_project\run_tasks\seq2seq\question_gen\train\shared.vocab.txt")
+
+  a = f(1,2)
+  a._build(3,4)
 
 
 

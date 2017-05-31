@@ -1,18 +1,20 @@
 tasks:
   - class: DecodeText
-    params:
-        unk_replace: True
+#    params:
+#        unk_replace: True
 #  - class: DumpBeams
 #    params:
 #      file: /home/bigdata/active_project/test_seq2seq_py2/yard_seq2seq/data/q2q_12w/predict/test0/beams_width_10.npz"
 
-input_pipeline:
-  class: ParallelTextInputPipeline
-  params:
-    source_files:
-      - /home/bigdata/active_project/test_seq2seq_py2/yard_seq2seq/data/q2q_12w_cancel_dup/data/test/sources.txt
-     # - /home/bigdata/active_project/test_seq2seq_py2/yard_seq2seq/data/own_questions.txt
-#model_params:
-#  inference.beam_search.beam_width: 10
+model_params:
+  inference.beam_search.beam_width: 10
 
-model_dir: "/home/bigdata/active_project/test_seq2seq_py2/yard_seq2seq/data/q2q_12w_cancel_dup/model/test0"
+#input_pipeline:
+#  class: ParallelTextInputPipeline
+#  params:
+#    source_files:
+#      - /home/bigdata/active_project/test_seq2seq_py2/yard_seq2seq/data/q2q_12w_cancel_dup/data/test/sources.txt
+#     # - /home/bigdata/active_project/test_seq2seq_py2/yard_seq2seq/data/own_questions.txt
+#
+#
+#model_dir: "/home/bigdata/active_project/test_seq2seq_py2/yard_seq2seq/data/q2q_12w_cancel_dup/model/test0"
