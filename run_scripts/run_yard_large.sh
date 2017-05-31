@@ -1,5 +1,26 @@
 #! /bin/bash/ env
 
+#data organized:
+#data_root/task_name:
+#        -data
+#            -vocab
+#            -train
+#            -dev
+#            -test
+#                -sources.txt
+#                -sources.txt
+#        -model
+#            -model_name0
+#                ...
+#            -model_name1
+#                ...
+#        -predict
+#            -model_name
+#                - prediction.steps0.txt
+#                - predictions.steps1.txt
+
+
+##every time, watch out task_name, model_name, config_app_name##
 
 echo "getting cluster info:"
 echo $1
@@ -13,12 +34,14 @@ echo $4
 echo "must enter the project seq2seq dir, then bash run_scripts/run_yard_xx.sh"
 
 SEQ2SEQ_PROJECT_DIR=${PWD}
-
-DATA_ROOT=${DATA_ROOT:=/mnt/yardcephfs/mmyard/g_wxg_td_prc/turingli/data}
-MODEL_DIR_ROOT=${MODEL_DIR_ROOT:=/mnt/yardcephfs/mmyard/g_wxg_td_prc/turingli/model}
-
 #TASK_NAME=ques_10w
 TASK_NAME=${TASK_NAME:=ques_gen_all}
+MODEL_NAME=${MODEL_NAME:=model0}
+
+DATA_ROOT=${DATA_ROOT:=/mnt/yardcephfs/mmyard/g_wxg_td_prc/turingli}
+MODEL_DIR_ROOT=${MODEL_DIR_ROOT:=/mnt/yardcephfs/mmyard/g_wxg_td_prc/turingli/model}
+
+
 #yard_ques_gen_10w_config
 CONFIG_APP_NAME=${CONFIG_APP_NAME:=yard_ques_gen_10w_config}
 CONFIG_DIR=${SEQ2SEQ_PROJECT_DIR}/example_configs/${CONFIG_APP_NAME}
@@ -27,7 +50,7 @@ echo "TASK_NAME=${TASK_NAME} must contain in config_dir and data_dir"
 echo "config dir: ${CONFIG_DIR}"
 echo "seq2seq project dir: ${SEQ2SEQ_PROJECT_DIR}"
 
-MAYBE_MODEL_DIR={MODEL_DIR_ROOT}/${TASK_NAME}
+MAYBE_MODEL_DIR={MODEL_DIR_ROOT}/${MODEL_NAME}
 MODEL_DIR=${MODEL_DIR:=$MAYBE_MODEL_DIR}
 
 mkdir -p ${MODEL_DIR}
