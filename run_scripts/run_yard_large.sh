@@ -105,7 +105,7 @@ python -m bin.train \
   --train_steps=$TRAIN_STEPS \
   --eval_every_n_steps=${EVAL_EVERY_N_STEPS} \
   --output_dir=$MODEL_DIR \
-  --clear_output_dir=${CLEAR_OUTPUT_DIR}
+  --clear_output_dir=${CLEAR_OUTPUT_DIR} \
   --save_checkpoints_secs=$SAVE_CHECK_SECS \
   --keep_checkpoint_max=$KEEP_CHECK_MAX \
   --set_eval_node=1
