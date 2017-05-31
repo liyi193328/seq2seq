@@ -17,6 +17,22 @@ def get_source_target(qs, keys, xs, ys,keep_one=False):
     targets.extend([ys[v] for v in vs])
   return sources, targets
 
+def get_unique_ques(file_path,save_path, sample_size=None, keep_col=0):
+  from os.path import join
+  if os.path.exists(os.path.dirname(save_path)) == False:
+    os.makedirs(os.path.dirname(save_path))
+  lines = codecs.open(file_path, "r", "utf-8").readlines()
+  f = codecs.open(save_path,"w", "utf-8")
+  qs_set = set()
+  for i, line in enumerate(lines):
+    t = line.strip().split("\t")
+    x = t[0].strip()
+    y = t[1].strip()
+    if x not in qs_set:
+      qs_set.add(x)
+      f.write(x+"\n")
+  f.close()
+
 def make(file_path, save_dir, ratio_list=None):
   from os.path import join
   if os.path.exists(save_dir) == False:
@@ -61,7 +77,8 @@ def make(file_path, save_dir, ratio_list=None):
 
 
 if __name__ == "__main__":
-  make("../data/q2q_pos.train", "../data/q2q_12w_cancel_dup")
+  # make("../data/q2q_pos.train", "../data/q2q_12w_cancel_dup")
+  get_unique_ques("../data/q2q_pos.train", "../data/all_ques.txt")
 
 
 

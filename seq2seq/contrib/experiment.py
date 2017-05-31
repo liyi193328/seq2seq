@@ -42,6 +42,8 @@ import contextlib
 import math
 import os
 import time
+import shutil
+import sys
 
 import tensorflow as tf
 from tensorflow.contrib.framework import deprecated
@@ -62,6 +64,7 @@ from tensorflow.python.util import compat
 
 # from tensorflow.contrib.learn.python.learn import monitors
 
+import seq2seq
 from seq2seq.contrib import monitors
 
 __all__ = ["Experiment"]
@@ -270,6 +273,12 @@ class Experiment(tf.contrib.learn.Experiment):
     previous_path = None
     eval_result = None
     last_warning_time = 0
+
+    #keep(copy) the best model by the save_model_metrics
+    save_model_metrics = "loss"
+    best_model = None
+    best_metrics_val = sys.float_info.max
+
     while (not continuous_eval_predicate_fn or
            continuous_eval_predicate_fn(eval_result)):
       # Exit if we have already reached number of steps to train.
@@ -312,6 +321,12 @@ class Experiment(tf.contrib.learn.Experiment):
         # Clear warning timer and update last evaluated checkpoint
         last_warning_time = 0
         previous_path = latest_path
+
+        if save_model_metrics in eval_result:
+          if eval_result[save_model_metrics] < best_metrics_val:
+            tf.logging.info("{}: {} ==> {}".format(best_metrics_val, best_metrics_val,
+                                                   eval_result[save_model_metrics]))
+            seq2seq.utils.file.copy_checkpoint_files(latest_path, self._estimator.model_dir)
 
       duration = time.time() - start
       if duration < throttle_delay_secs:
