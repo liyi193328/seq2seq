@@ -42,6 +42,7 @@ tf.flags.DEFINE_string("tasks", "{}", "List of inference tasks to run.")
 tf.flags.DEFINE_string("model_params", "{}", """Optionally overwrite model
                         parameters for inference""")
 
+tf.flags.DEFINE_integer("num_threads", None,"num threads[None]")
 tf.flags.DEFINE_string("config_path", None,
                        """Path to a YAML configuration file defining FLAG
                        values and hyperparameters. Refer to the documentation
@@ -129,6 +130,7 @@ def main(_argv):
   session_creator = tf.train.ChiefSessionCreator(scaffold=scaffold)
   with tf.train.MonitoredSession(
       session_creator=session_creator,
+      config=tf.ConfigProto(intra_op_parallelism_threads=FLAGS.num_threads),
       hooks=hooks) as sess:
 
     # Run until the inputs are exhausted
