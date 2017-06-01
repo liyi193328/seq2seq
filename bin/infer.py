@@ -129,7 +129,7 @@ def main(_argv):
 
   scaffold = tf.train.Scaffold(init_fn=session_init_op)
   session_creator = tf.train.ChiefSessionCreator(scaffold=scaffold,config=tf.ConfigProto(intra_op_parallelism_threads=FLAGS.num_threads))
-  with MonitoredSession(
+  with tf.train.MonitoredSession(
       session_creator=session_creator,
       hooks=hooks) as sess:
 
