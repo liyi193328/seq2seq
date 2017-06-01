@@ -33,6 +33,7 @@ import tensorflow as tf
 from tensorflow import gfile
 
 from seq2seq import tasks, models
+from seq2seq.contrib.monitored_session import MonitoredTrainingSession
 from seq2seq.configurable import _maybe_load_yaml, _deep_merge_dict
 from seq2seq.data import input_pipeline
 from seq2seq.inference import create_inference_graph
@@ -128,7 +129,7 @@ def main(_argv):
 
   scaffold = tf.train.Scaffold(init_fn=session_init_op)
   session_creator = tf.train.ChiefSessionCreator(scaffold=scaffold)
-  with tf.train.MonitoredSession(
+  with MonitoredSession(
       session_creator=session_creator,
       config=tf.ConfigProto(intra_op_parallelism_threads=FLAGS.num_threads),
       hooks=hooks) as sess:
