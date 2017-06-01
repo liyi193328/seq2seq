@@ -14,15 +14,15 @@ my_env = os.environ.copy()
 Python = sys.executable
 print(Python)
 
-def loop_infer(sleep_secs, total_secs, yaml_conf_path, source_path, model_dir, save_dir, config, save_name):
+def loop_infer(sleep_secs, total_secs, yaml_conf_path, source_path, model_dir, save_dir, config, save_name, checkpoint_path="None"):
   start = time.time()
 
   while time.time() - start < total_secs:
-    call_infer_fn(yaml_conf_path, source_path, model_dir, save_dir, config, save_name)
+    call_infer_fn(yaml_conf_path, source_path, model_dir, save_dir, config, save_name, checkpoint_path=checkpoint_path)
     time.sleep(sleep_secs)
   return
 
-def call_infer_fn(yaml_conf_path, source_path, model_dir, save_dir, config, save_name):
+def call_infer_fn(yaml_conf_path, source_path, model_dir, save_dir, config, save_name, checkpoint_path="None"):
 
   yaml_conf_path = os.path.abspath(yaml_conf_path)
   source_path = os.path.abspath(source_path)
@@ -35,6 +35,7 @@ def call_infer_fn(yaml_conf_path, source_path, model_dir, save_dir, config, save
   {Python} -m bin.infer \
   --config_path={yaml_conf_path} \
   --model_dir={model_dir} \
+  --checkpoint_path={checkpoint_path} \
   --input_pipeline="
     class: ParallelTextInputPipeline
     params:
@@ -46,6 +47,7 @@ def call_infer_fn(yaml_conf_path, source_path, model_dir, save_dir, config, save
     yaml_conf_path=yaml_conf_path,
     source_path=source_path,
     save_dir=save_dir,
+    checkpoint_path=checkpoint_path,
     model_dir=model_dir,
     save_name=save_name
   )
@@ -69,6 +71,7 @@ if __name__ == "__main__":
   parser.add_argument("--total_secs", type=int, default=20*3600, help="total secs for loop infer")
   parser.add_argument("--source_path", type=str, default=source_path)
   parser.add_argument("--model_dir", type=str, default=model_dir)
+  parser.add_argument("--checkpoint_path", type=str, default="None", help="if specify checkpoint_path, model_dir will be ignore[None]")
   parser.add_argument("--save_dir", type=str, default=save_dir)
   parser.add_argument("--save_name", type=str, default="predictions.txt", help="final pred results saved to {save_dir}/{save_name}")
   args = parser.parse_args()
@@ -76,6 +79,6 @@ if __name__ == "__main__":
     "beam_width": 5
   }
   if args.infer_once in ["true", "True", "Y", "yes"]:
-    call_infer_fn(args.yaml_conf_path, args.source_path, args.model_dir, args.save_dir, config, args.save_name)
+    call_infer_fn(args.yaml_conf_path, args.source_path, args.model_dir, args.save_dir, config, args.save_name, checkpoint_path=args.checkpoint_path)
   else:
-    loop_infer(args.sleep_secs, args.total_secs, args.yaml_conf_path, args.source_path, args.model_dir, args.save_dir, config, args.save_name)
+    loop_infer(args.sleep_secs, args.total_secs, args.yaml_conf_path, args.source_path, args.model_dir, args.save_dir, config, args.save_name, checkpoint_path=args.checkpoint_path)

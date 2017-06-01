@@ -327,6 +327,7 @@ class Experiment(tf.contrib.learn.Experiment):
             tf.logging.info("{}: {} ==> {}".format(best_metrics_val, best_metrics_val,
                                                    eval_result[save_model_metrics]))
             seq2seq.utils.file.copy_checkpoint_files(latest_path, self._estimator.model_dir)
+            best_metrics_val = eval_result[save_model_metrics]
 
       duration = time.time() - start
       if duration < throttle_delay_secs:
