@@ -115,7 +115,7 @@ def main(_argv):
 
   saver = tf.train.Saver()
   checkpoint_path = FLAGS.checkpoint_path
-  if not checkpoint_path:
+  if not checkpoint_path or checkpoint_path == "None":
     checkpoint_path = tf.train.latest_checkpoint(FLAGS.model_dir)
     ckpt = tf.train.get_checkpoint_state(FLAGS.model_dir)
     global_steps = int(os.path.basename(ckpt.model_checkpoint_path).split('-')[1])
