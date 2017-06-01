@@ -128,10 +128,9 @@ def main(_argv):
     tf.logging.info("Restored model from %s", checkpoint_path)
 
   scaffold = tf.train.Scaffold(init_fn=session_init_op)
-  session_creator = tf.train.ChiefSessionCreator(scaffold=scaffold)
+  session_creator = tf.train.ChiefSessionCreator(scaffold=scaffold,config=tf.ConfigProto(intra_op_parallelism_threads=FLAGS.num_threads))
   with MonitoredSession(
       session_creator=session_creator,
-      config=tf.ConfigProto(intra_op_parallelism_threads=FLAGS.num_threads),
       hooks=hooks) as sess:
 
     # Run until the inputs are exhausted
