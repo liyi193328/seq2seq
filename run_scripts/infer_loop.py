@@ -16,7 +16,6 @@ print(Python)
 
 def loop_infer(sleep_secs, total_secs, yaml_conf_path, source_path, model_dir, save_dir, config, save_name, checkpoint_path="None"):
   start = time.time()
-
   while time.time() - start < total_secs:
     call_infer_fn(yaml_conf_path, source_path, model_dir, save_dir, config, save_name, checkpoint_path=checkpoint_path)
     time.sleep(sleep_secs)
