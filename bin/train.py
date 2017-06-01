@@ -329,7 +329,7 @@ def create_experiment(output_dir):
       eval_metrics=eval_metrics,
       train_monitors=train_hooks,
       eval_hooks=eval_hooks,
-      continuous_eval_throttle_secs=300
+      continuous_eval_throttle_secs=600
   )
 
   return experiment
