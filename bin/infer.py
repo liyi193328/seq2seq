@@ -117,9 +117,11 @@ def main(_argv):
   checkpoint_path = FLAGS.checkpoint_path
   if not checkpoint_path:
     checkpoint_path = tf.train.latest_checkpoint(FLAGS.model_dir)
-
-  #get static global steps from checkpoint path
-  global_steps = int(os.path.basename(checkpoint_path).split('-')[1])
+    ckpt = tf.train.get_checkpoint_state(FLAGS.model_dir)
+    global_steps = int(os.path.basename(ckpt.model_checkpoint_path).split('-')[1])
+  else:
+    #get static global steps from checkpoint path
+    global_steps = int(os.path.basename(checkpoint_path).split('-')[1])
   if FLAGS.save_pred_path is not None:
     FLAGS.save_pred_path = FLAGS.save_pred_path + "." + str(global_steps)
 
