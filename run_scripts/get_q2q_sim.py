@@ -8,6 +8,9 @@ warp this comand for whole file
 
 import os
 import sys
+if sys.version_info[0] == 2:
+  reload(sys)
+  sys.setdefaultencoding("utf-8")
 import time
 import json
 import codecs
@@ -22,6 +25,7 @@ def get_q2q_sim(q0, q1):
   q0 = q0.replace("SEQUENCE_END", "")
   q1 = q1.replace("SEQUENCE_END", "")
   cmd = ''' curl -X POST -d '{{"query":"{}", "question":"{}" }}' http://10.191.15.89:40919/cgi-bin/ranker/q2qsimilarity '''.format(q0, q1)
+  cmd = cmd.decode("utf-8")
   print(cmd)
   pro = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
   outputs, errs = pro.communicate()
@@ -33,6 +37,29 @@ def jsonWrite(file_path, d, indent=2):
 
 def split_join(s):
   return "".join(s.strip().split())
+
+def get_q2q_file_sinle_pro(file_path, save_path, parallels=1, time_dealy=2):
+  f = codecs.open(file_path, "r","utf-8")
+  results = []
+  pros = []
+
+  cnt = 0
+  while True:
+    s = f.readline()
+    if not s:
+      break
+    t = f.readline()
+    f.readline()
+    outputs = get_q2q_sim(s,t)
+    results.append({"source":s, "pred":t})
+    rj = json.loads(outputs.strip())
+    if str(rj["data"]["error"]) == "0":
+        results[cnt]["score"] = rj["data"]["score"]
+    if "score" not in results[i]:
+      results[cnt]["score"] = -1
+    cnt += 1
+
+  jsonWrite(file_path, results, indent=2)
 
 def get_q2q_file(file_path, save_path, parallels=MP.cpu_count() - 2, time_dealy=2):
   f = codecs.open(file_path, "r","utf-8")
@@ -73,5 +100,5 @@ if __name__ == "__main__":
   parser.add_argument("--pnums", default=max(1, MP.cpu_count() - 5), type=int, help="parallels")
   args = parser.parse_args()
 
-  get_q2q_file(args.file_path, args.save_path,parallels=args.pnums)
+  get_q2q_file_sinle_pro(args.file_path, args.save_path,parallels=args.pnums)
 
