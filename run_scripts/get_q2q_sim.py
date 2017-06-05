@@ -72,6 +72,10 @@ def get_q2q_file(file_path, save_path, parallels=MP.cpu_count() - 2, time_dealy=
       break
     t = f.readline()
     f.readline()
+    s = split_join(s)
+    t = split_join(t)
+    s = s.replace("SEQUENCE_END", "")
+    t = t.replace("SEQUENCE_END", "")
     pro = pool.apply_async( get_q2q_sim, args=(s,t,) )
     pros.append(pro)
     print("{}th process starts...".format(len(pros)))
