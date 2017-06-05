@@ -35,11 +35,11 @@ def get_q2q_file(file_path, save_path, parallels=MP.cpu_count() - 2, time_dealy=
   pros = []
 
   while True:
-    s = f.readlines()
+    s = f.readline()
     if not s:
       break
-    t = f.readlines()
-    f.readlines()
+    t = f.readline()
+    f.readline()
     pro = pool.apply_async( get_q2q_sim, args=(s,t,) )
     pros.append(pro)
     results.append({"source":s, "predict":t})
