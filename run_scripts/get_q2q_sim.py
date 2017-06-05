@@ -1,6 +1,5 @@
 #encoding=utf-8
 
-
 """
 get q2q similariy from service
 curl -X POST -d '{"query":"你知罪吗", "question":"你知道错了吗"}' http://10.191.15.89:40919/cgi-bin/ranker/q2qsimilarity
@@ -20,7 +19,7 @@ def get_q2q_sim(q0, q1):
   q0 = q0.strip()
   q1 = q1.strip()
   cmd = '''curl -X POST -d '{"''' + """query":"{}", "question":"{}" """.format(q0, q1) + """}' http://10.191.15.89:40919/cgi-bin/ranker/q2qsimilarity"""
-  print(cmd)
+  # print(cmd)
   res = subprocess.run(cmd, shell=True, check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
   return res
 
@@ -59,6 +58,7 @@ def get_q2q_file(file_path, save_path, parallels=MP.cpu_count() - 2, time_dealy=
   jsonWrite(file_path, results, indent=2)
 
 if __name__ == "__main__":
+
   # get_q2q_sim("我爱中国", "我爱中华人民共和国")
 
   parser = argparse.ArgumentParser()
