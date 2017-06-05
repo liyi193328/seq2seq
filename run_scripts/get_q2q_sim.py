@@ -22,8 +22,9 @@ def get_q2q_sim(q0, q1):
   q1 = q1.replace("SEQUENCE_END", "")
   cmd = '''curl -X POST -d '{"''' + """query":"{}", "question":"{}" """.format(q0, q1) + """}' http://10.191.15.89:40919/cgi-bin/ranker/q2qsimilarity"""
   print(cmd)
-  # res = subprocess.run(cmd, shell=True, check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-  return None
+  pro = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+  outputs, errs = pro.communicate()
+  return outputs
 
 def jsonWrite(file_path, d, indent=2):
   with codecs.open(file_path, "w", "utf-8") as f:
@@ -52,10 +53,9 @@ def get_q2q_file(file_path, save_path, parallels=MP.cpu_count() - 2, time_dealy=
       print("waiting for {} secs".format(time_dealy))
       time.sleep(time_dealy)
   for i, pro in enumerate(pros):
-    res = pro.get()
-    if res.returncode == 0:
-      rj = json.loads(res.stdout.decode("utf-8"))
-      if str(rj["data"]["error"]) == "0":
+    outputs = pro.get().strip()
+    rj = json.loads(outputs.strip())
+    if str(rj["data"]["error"]) == "0":
         results[i]["score"] = rj["data"]["score"]
     if "score" not in results[i]:
       results[i]["score"] = -1
