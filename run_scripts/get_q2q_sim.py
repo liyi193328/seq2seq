@@ -16,16 +16,21 @@ import subprocess
 
 
 def get_q2q_sim(q0, q1):
-  q0 = q0.strip()
-  q1 = q1.strip()
+  q0 = split_join(q0)
+  q1 = split_join(q1)
+  q0 = q0.replace("SEQUENCE_END", "")
+  q1 = q1.replace("SEQUENCE_END", "")
   cmd = '''curl -X POST -d '{"''' + """query":"{}", "question":"{}" """.format(q0, q1) + """}' http://10.191.15.89:40919/cgi-bin/ranker/q2qsimilarity"""
-  # print(cmd)
-  res = subprocess.run(cmd, shell=True, check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-  return res
+  print(cmd)
+  # res = subprocess.run(cmd, shell=True, check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+  return None
 
 def jsonWrite(file_path, d, indent=2):
   with codecs.open(file_path, "w", "utf-8") as f:
     json.dump(f,d,ensure_ascii=False, indent=indent)
+
+def split_join(s):
+  return "".join(s.strip().split())
 
 def get_q2q_file(file_path, save_path, parallels=MP.cpu_count() - 2, time_dealy=2):
   f = codecs.open(file_path, "r","utf-8")
