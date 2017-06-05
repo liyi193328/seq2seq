@@ -62,6 +62,7 @@ if __name__ == "__main__":
   parser = argparse.ArgumentParser()
   parser.add_argument("file_path", type=str, help="model preidct path")
   parser.add_argument("save_path", type=str, help="save result path")
+  parser.add_argument("--pnums", default=max(1, MP.cpu_count() - 5), type=int, help="parallels")
   args = parser.parse_args()
 
-  get_q2q_file(args.file_path, args.save_path)
+  get_q2q_file(args.file_path, args.save_path,parallels=args.pnums)
