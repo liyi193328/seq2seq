@@ -20,7 +20,7 @@ def get_q2q_sim(q0, q1):
   q1 = split_join(q1)
   q0 = q0.replace("SEQUENCE_END", "")
   q1 = q1.replace("SEQUENCE_END", "")
-  cmd = '''curl -X POST -d '{"''' + """query":"{}", "question":"{}" """.format(q0, q1) + """}' http://10.191.15.89:40919/cgi-bin/ranker/q2qsimilarity"""
+  cmd = ''' curl -X POST -d '{{"query":"{}", "question":"{}" + }}' http://10.191.15.89:40919/cgi-bin/ranker/q2qsimilarity '''.format(q0, q1)
   print(cmd)
   pro = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
   outputs, errs = pro.communicate()
@@ -64,7 +64,10 @@ def get_q2q_file(file_path, save_path, parallels=MP.cpu_count() - 2, time_dealy=
 
 if __name__ == "__main__":
 
-  # get_q2q_sim("我爱中国", "我爱中华人民共和国")
+  get_q2q_sim("我爱中国", "我爱中华人民共和国")
+
+'''
+
 
   parser = argparse.ArgumentParser()
   parser.add_argument("file_path", type=str, help="model preidct path")
@@ -73,3 +76,6 @@ if __name__ == "__main__":
   args = parser.parse_args()
 
   get_q2q_file(args.file_path, args.save_path,parallels=args.pnums)
+
+
+'''
