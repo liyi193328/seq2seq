@@ -81,7 +81,7 @@ def get_q2q_file(file_path, save_path, parallels=MP.cpu_count() - 2, time_dealy=
     pros.append(pro)
     print("{}th process starts...".format(len(pros)))
     results.append({"source":s, "predict":t})
-    if len(pros) % 10000 == 0:
+    if len(pros) % 3000 == 0:
       print("waiting for {} secs".format(time_dealy))
       time.sleep(time_dealy)
   for i, pro in enumerate(pros):
