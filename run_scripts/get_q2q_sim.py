@@ -15,6 +15,7 @@ import time
 import json
 import codecs
 import argparse
+import traceback
 import multiprocessing as MP
 import subprocess
 
@@ -85,15 +86,20 @@ def get_q2q_file(file_path, save_path, parallels=MP.cpu_count() - 2, time_dealy=
       time.sleep(time_dealy)
   for i, pro in enumerate(pros):
     outputs = pro.get().strip()
-    rj = json.loads(outputs.strip())
-    if "data" not in rj:
-      print("errors, {}".format(rj))
-      results[i]["score"] = -1
-    else:
-      if str(rj["data"]["error"]) == "0":
-          results[i]["score"] = rj["data"]["score"]
-      if "score" not in results[i]:
+    try:
+      rj = json.loads(outputs.strip())
+      if "data" not in rj:
+        print("errors, {}".format(rj))
         results[i]["score"] = -1
+      else:
+        if str(rj["data"]["error"]) == "0":
+            results[i]["score"] = rj["data"]["score"]
+        if "score" not in results[i]:
+          results[i]["score"] = -1
+    except Exception:
+      results[i]["score"] = -1
+      print(results[i])
+      traceback.print_exc()
 
   jsonWrite(results,save_path,indent=2)
 
