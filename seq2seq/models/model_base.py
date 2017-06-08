@@ -145,6 +145,7 @@ class ModelBase(Configurable):
       with tf.variable_scope(self.name):
         return self._build(features, labels, params)
 
+
   def _build(self, features, labels, params):
     """Subclasses should implement this method. See the `model_fn` documentation
     in tf.contrib.learn.Estimator class for a more detailed explanation.

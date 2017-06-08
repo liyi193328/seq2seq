@@ -319,4 +319,5 @@ class Seq2SeqModel(ModelBase):
     # can easly find them in our hooks/monitors.
     graph_utils.add_dict_to_collection(predictions, "predictions")
 
+    #here return 3 elements is ok, in estimator, it will be atomatically into model_fn_lib.ModelFnOps
     return predictions, loss, train_op
