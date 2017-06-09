@@ -1,5 +1,9 @@
 #encoding=utf-8
 
+
+import numpy as np
+import tensorflow as tf
+
 from tensorflow import gfile
 
 from seq2seq.data.vocab import create_vocabulary_lookup_table
@@ -54,6 +58,9 @@ class f(object):
   def _build(self, c,d):
     print("in build")
     print(c, d)
+
+
+
 
 if __name__ == "__main__":
 
