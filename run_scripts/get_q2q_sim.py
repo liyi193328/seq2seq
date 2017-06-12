@@ -34,7 +34,8 @@ def jsonWrite(d, file_path, indent=2):
 def split_join(s):
   return "".join(s.strip().split())
 
-def get_q2q_file_sinle_pro(file_path, save_path, parallels=1, time_dealy=2):
+def get_q2q_file_sinle_pro(file_path, save_path, parallels=1, time_dealy=2, join_space=False,
+                           delimiter="\t",in_one_line=True):
   # file_path is tokenized file
   f = codecs.open(file_path, "r","utf-8")
   results = []
@@ -42,13 +43,25 @@ def get_q2q_file_sinle_pro(file_path, save_path, parallels=1, time_dealy=2):
 
   cnt = 0
   while True:
-    s = f.readline()
-    if not s:
+    # handle two conditions:
+    # {s0}\t{s1}  ||  {s0}\n{s1}\n
+    line0 = f.readline()
+    if not line0:
       break
-    t = f.readline()
-    f.readline()
-    s = split_join(s)
-    t = split_join(t)
+    if in_one_line is True:
+      try:
+        s, t = line0.split(delimiter)
+      except Exception:
+        print("errors happen in {}".format(line0))
+        continue
+    else:
+      s = line0
+      t = f.readline()
+      f.readline()
+    s, t = s.strip(), t.strip()
+    if join_space:
+      s = split_join(s)
+      t = split_join(t)
     s = s.replace("SEQUENCE_END", "")
     t = t.replace("SEQUENCE_END", "")
     outputs = get_q2q_sim(s,t)
@@ -59,6 +72,7 @@ def get_q2q_file_sinle_pro(file_path, save_path, parallels=1, time_dealy=2):
     if "score" not in results[cnt]:
       results[cnt]["score"] = -1
     cnt += 1
+    print("finish {} sents".format(cnt))
 
   jsonWrite(results, save_path , indent=2)
 
@@ -134,6 +148,8 @@ if __name__ == "__main__":
   parser.add_argument("save_path", type=str, help="save result path")
   parser.add_argument("--pnums", default=max(1, MP.cpu_count() - 5), type=int, help="parallels[cpu.count - 5]")
   args = parser.parse_args()
-
-  get_q2q_file(args.file_path, args.save_path,parallels=args.pnums)
+  if args.pnums <= 1:
+    get_q2q_file_sinle_pro(args.file_path, args.save_path)
+  else:
+    get_q2q_file(args.file_path, args.save_path,parallels=args.pnums)
 
