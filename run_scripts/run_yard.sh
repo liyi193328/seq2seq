@@ -10,7 +10,7 @@ echo $4
 
 ##changable according to your data dir and task
 
-echo "must enter the project seq2seq dir, then bash run_scripts/local_yard_test.sh"
+echo "must enter the project seq2seq dir, then bash run_scripts/run_yard.sh"
 
 DATA_ROOT=/mnt/yardcephfs/mmyard/g_wxg_td_prc/turingli/data
 MODEL_NAME=model_yard

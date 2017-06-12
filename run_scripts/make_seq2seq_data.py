@@ -22,7 +22,6 @@ try:
 except ImportError:
   print("May add seq2seq dir into pythonpath")
 
-
 def filter_pos(file_path, save_path):
     f = codecs.open(file_path, "r", "utf-8")
     lines = f.readlines(f)
@@ -38,6 +37,7 @@ def filter_pos(file_path, save_path):
         except Exception:
             print("error:", line)
     f.close()
+
 def filter_illegal(path, in_place=True, newpath=None):
     if in_place is False:
         assert newpath is not None
