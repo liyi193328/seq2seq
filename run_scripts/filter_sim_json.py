@@ -19,7 +19,7 @@ def filter_low_sim_from_json(json_path, save_path, sim_threshold=0.95):
   fout = codecs.open(save_path, "w", "utf-8")
   for i, cell in enumerate(data):
     if i % 100000 == 0:
-      print("finished {]".format(i/len(data)))
+      print("finished {}".format(i/len(data)))
     try:
       if cell["score"] >= sim_threshold:
         s = "\t".join([cell["source"], cell["predict"], str(cell["score"])]) + "\n"
