@@ -207,7 +207,9 @@ def cli():
 @click.option("--sample_size", default=None, help="sample size, None mean all")
 @click.option("--ratios", default="0.95,1.0,1.0", help="train,dev,test split ratio")
 @click.option("--seq2seq_path", default=None, help="seq2seq dir")
-def make_sep_datasets(source_data_path, save_data_dir, ratios="0.95,1.0,1.0", keep=None, add_dual=True, seq2seq_path=None):
+def make_sep_datasets(source_data_path, save_data_dir, ratios="0.95,1.0,1.0",
+                      keep=None, sample_size=None,
+                      add_dual=True, seq2seq_path=None):
 
   from os.path import join
 
