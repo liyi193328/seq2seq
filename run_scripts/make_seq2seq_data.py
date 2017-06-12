@@ -275,7 +275,8 @@ def make_sep_datasets(source_data_path, save_data_dir, ratios="0.95,1.0,1.0",
     global_gen_vocb_script_path = join(seq2seq_path, "bin/tools/generate_vocab.py")
   elif global_gen_vocb_script_path is None:
     raise ValueError("No seq2seq found")
-  generate_vocb(global_gen_vocb_script_path, save_data_dir)
+
+  generate_parallel_vocbs(global_gen_vocb_script_path, save_data_dir)
   get_unique_ques(source_data_path, join(save_data_dir, "all_ques.txt"), add_dual=True)
 
 @click.command()
@@ -287,6 +288,7 @@ def make_sep_datasets(source_data_path, save_data_dir, ratios="0.95,1.0,1.0",
 def make_inter_datasets(source_data_path, save_data_dir,ratios="0.95,1.0,1.0", sample_size=None,seq2seq_path=None):
 
     from os.path import join
+    global global_gen_vocb_script_path
 
     ratio_list = [float(v) for v in ratios.split(",")]
     if len(ratio_list) != 3:
