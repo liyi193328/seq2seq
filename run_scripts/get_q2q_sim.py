@@ -41,7 +41,7 @@ def get_q2q_file_sinle_pro(file_path, save_path, parallels=1, time_dealy=2, join
   results = []
   pros = []
 
-  cnt = 0
+  begin = time.time()
   while True:
     # handle two conditions:
     # {s0}\t{s1}  ||  {s0}\n{s1}\n
@@ -65,14 +65,27 @@ def get_q2q_file_sinle_pro(file_path, save_path, parallels=1, time_dealy=2, join
     s = s.replace("SEQUENCE_END", "")
     t = t.replace("SEQUENCE_END", "")
     outputs = get_q2q_sim(s,t)
-    results.append({"source":s, "pred":t})
-    rj = json.loads(outputs.strip())
-    if str(rj["data"]["error"]) == "0":
-        results[cnt]["score"] = rj["data"]["score"]
-    if "score" not in results[cnt]:
-      results[cnt]["score"] = -1
-    cnt += 1
-    print("finish {} sents".format(cnt))
+    tmp_dict = {"source":s, "pred":t}
+    try:
+      rj = json.loads(outputs.strip())
+      if "data" not in rj:
+        print("errors, {}".format(rj))
+        tmp_dict["score"] = -1
+      else:
+        if str(rj["data"]["error"]) == "0":
+          tmp_dict["score"] = rj["data"]["score"]
+        if "score" not in tmp_dict:
+          tmp_dict["score"] = -1
+    except Exception:
+      tmp_dict["score"] = -1
+      print(outputs)
+      traceback.print_exc()
+    results.append(tmp_dict)
+    if len(results) % 100000 == 0:
+      print("finished {} sents".format(len(results)))
+      now_time = time.time()
+      print("cost {}".format(now_time - begin))
+      time.sleep(time_dealy)
 
   jsonWrite(results, save_path , indent=2)
 
