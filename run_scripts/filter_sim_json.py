@@ -12,7 +12,7 @@ import click
 
 @click.command()
 @click.argument("json_path", "json path from get_q2q_sim.py, every cell contain source, predict, score")
-@click.argument("--save_path", default=None, "store filter result path, every line is tab.join(s,p,score), None print on screen")
+@click.option("--save_path", default=None, help="store filter result path, every line is tab.join(s,p,score), None print on screen")
 @click.option("--sim_threshold", default=0.95,help="lowest sim threshold[0.95]")
 def filter_low_sim_from_json(json_path, save_path=None, sim_threshold=0.95):
   data = json.load(codecs.open(json_path, "r", "utf-8"))
