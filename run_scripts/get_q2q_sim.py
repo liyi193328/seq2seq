@@ -64,11 +64,10 @@ def get_q2q_file_sinle_pro(file_path, save_path, parallels=1, time_dealy=2,
     s = s.replace("SEQUENCE_END", "")
     t = t.replace("SEQUENCE_END", "")
     outputs = get_q2q_sim(s,t)
-    tmp_dict = {"source":tokenized_s, "pred":tokenized_t}
+    tmp_dict = {"source":tokenized_s, "predict":tokenized_t}
     try:
       rj = json.loads(outputs.strip())
       if "data" not in rj:
-        print("errors, {}".format(rj))
         tmp_dict["score"] = -1
       else:
         if str(rj["data"]["error"]) == "0":
@@ -77,15 +76,16 @@ def get_q2q_file_sinle_pro(file_path, save_path, parallels=1, time_dealy=2,
           tmp_dict["score"] = -1
     except Exception:
       tmp_dict["score"] = -1
-      print(tmp_dict.values())
-      print(outputs)
       traceback.print_exc()
+    if tmp_dict["score"] == -1:
+      print("{}\t{}".format(tmp_dict["source"], tmp_dict["predict"]))
     results.append(tmp_dict)
-    if len(results) % 100000 == 0:
+    if len(results) % 200000 == 0:
       print("finished {} sents".format(len(results)))
       now_time = time.time()
       print("cost {}".format(now_time - begin))
       time.sleep(time_dealy)
+      jsonWrite(results, save_path, indent=2)
 
   jsonWrite(results, save_path , indent=2)
 
@@ -144,7 +144,9 @@ def get_q2q_file(file_path, save_path, parallels=MP.cpu_count() - 2, time_dealy=
       results[i]["score"] = -1
       print(results[i])
       traceback.print_exc()
-    if i and i % 500000 == 0:
+    if i and i % 10000:
+      print("finined {} sents and ratio {}".format(i, i/float(nums)))
+    if i and i % 300000 == 0:
       print("finished {}".format(i/nums))
       jsonWrite(results[0:i], save_path, indent=2)
 
