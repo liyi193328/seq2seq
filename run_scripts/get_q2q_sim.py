@@ -90,7 +90,7 @@ def get_q2q_file_sinle_pro(file_path, save_path, parallels=1, time_dealy=2, join
 
   jsonWrite(results, save_path , indent=2)
 
-def get_q2q_file(file_path, save_path, parallels=MP.cpu_count() - 2, time_dealy=2,
+def get_q2q_file(file_path, save_path, parallels=MP.cpu_count() - 2, time_dealy=1,
                  in_one_line=True, delimiter="\t", join_space=False):
 
   # file_path is tokenized
@@ -125,7 +125,7 @@ def get_q2q_file(file_path, save_path, parallels=MP.cpu_count() - 2, time_dealy=
     pros.append(pro)
     print("{}th process starts...".format(len(pros)))
     results.append({"source":s, "predict":t})
-    if len(pros) % 3000 == 0:
+    if len(pros) % 30000 == 0:
       print("waiting for {} secs".format(time_dealy))
       time.sleep(time_dealy)
 
@@ -146,7 +146,7 @@ def get_q2q_file(file_path, save_path, parallels=MP.cpu_count() - 2, time_dealy=
       results[i]["score"] = -1
       print(results[i])
       traceback.print_exc()
-    if i and i % 100000 == 0:
+    if i and i % 500000 == 0:
       print("finished {}".format(i/nums))
       jsonWrite(results[0:i], save_path, indent=2)
 
