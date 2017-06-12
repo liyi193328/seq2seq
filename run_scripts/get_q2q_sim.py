@@ -22,7 +22,7 @@ import subprocess
 
 def get_q2q_sim(q0, q1):
   cmd = ''' curl -X POST -d '{{"query":"{}", "question":"{}" }}' http://10.191.15.89:40919/cgi-bin/ranker/q2qsimilarity '''.format(q0, q1)
-  print(cmd)
+  # print(cmd)
   pro = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
   outputs, errs = pro.communicate()
   return outputs
@@ -119,8 +119,8 @@ def get_q2q_file(file_path, save_path, parallels=MP.cpu_count() - 2, time_dealy=
       print(results[i])
       traceback.print_exc()
     if i and i % 100000 == 0:
-      save_tmp_path = save_path + ".2f"%(str(float(i)/nums))
-      jsonWrite(results, save_tmp_path, indent=2)
+      print(i/nums)
+      jsonWrite(results, save_path, indent=2)
 
   jsonWrite(results,save_path,indent=2)
 
