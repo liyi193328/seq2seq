@@ -14,6 +14,7 @@ from os.path import join
 import click
 
 global_gen_vocb_script_path = None
+
 try:
   import seq2seq
   project_path = os.path.dirname(seq2seq.__path__[0])
@@ -212,6 +213,7 @@ def make_sep_datasets(source_data_path, save_data_dir, ratios="0.95,1.0,1.0",
                       add_dual=True, seq2seq_path=None):
 
   from os.path import join
+  global  global_gen_vocb_script_path
 
   if os.path.exists(save_data_dir) == False:
     os.makedirs(save_data_dir)
