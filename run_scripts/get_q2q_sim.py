@@ -35,6 +35,7 @@ def split_join(s):
   return "".join(s.strip().split())
 
 def get_q2q_file_sinle_pro(file_path, save_path, parallels=1, time_dealy=2):
+  # file_path is tokenized file
   f = codecs.open(file_path, "r","utf-8")
   results = []
   pros = []
@@ -61,18 +62,31 @@ def get_q2q_file_sinle_pro(file_path, save_path, parallels=1, time_dealy=2):
 
   jsonWrite(results, save_path , indent=2)
 
-def get_q2q_file(file_path, save_path, parallels=MP.cpu_count() - 2, time_dealy=2):
+def get_q2q_file(file_path, save_path, parallels=MP.cpu_count() - 2, time_dealy=2, in_one_line=False, delimiter="\t"):
+
+  # file_path is tokenized
   f = codecs.open(file_path, "r","utf-8")
   results = []
   pool = MP.Pool(parallels)
   pros = []
 
   while True:
-    s = f.readline()
-    if not s:
+    # handle two conditions:
+    # {s0}\t{s1}  ||  {s0}\n{s1}\n
+    line0 = f.readline()
+    if not line0:
       break
-    t = f.readline()
-    f.readline()
+    if in_one_line is True:
+      try:
+        s, t = line0.split(delimiter)
+      except Exception:
+        print("errors happen in {}".format(line0))
+        continue
+    else:
+      s = line0
+      t = f.readline()
+      f.readline()
+
     s = split_join(s)
     t = split_join(t)
     s = s.replace("SEQUENCE_END", "")
