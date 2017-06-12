@@ -119,7 +119,7 @@ def get_q2q_file(file_path, save_path, parallels=MP.cpu_count() - 2, time_dealy=
       print(results[i])
       traceback.print_exc()
     if i and i % 100000 == 0:
-      print(i/nums)
+      print("finished {}".format(i/nums))
       jsonWrite(results, save_path, indent=2)
 
   jsonWrite(results,save_path,indent=2)
