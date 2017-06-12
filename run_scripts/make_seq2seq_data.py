@@ -10,11 +10,16 @@ import subprocess
 import numpy as np
 from os.path import join
 
-import seq2seq
+
 import click
 
-project_path = os.path.dirname(seq2seq.__path__[0])
-generate_vocb_script_path = join(project_path, "bin/tools/generate_vocab.py")
+global_gen_vocb_script_path = None
+try:
+  import seq2seq
+  project_path = os.path.dirname(seq2seq.__path__[0])
+  global_gen_vocb_script_path = join(project_path, "bin/tools/generate_vocab.py")
+except ImportError:
+  print("May add seq2seq dir into pythonpath")
 
 
 def filter_pos(file_path, save_path):
@@ -201,7 +206,8 @@ def cli():
 @click.argument("save_data_dir")
 @click.option("--sample_size", default=None, help="sample size, None mean all")
 @click.option("--ratios", default="0.95,1.0,1.0", help="train,dev,test split ratio")
-def make_sep_datasets(source_data_path, save_data_dir, ratios="0.95,1.0,1.0", keep=None, add_dual=True):
+@click.option("--seq2seq_path", default=None, help="seq2seq dir")
+def make_sep_datasets(source_data_path, save_data_dir, ratios="0.95,1.0,1.0", keep=None, add_dual=True, seq2seq_path=None):
 
   from os.path import join
 
@@ -261,7 +267,11 @@ def make_sep_datasets(source_data_path, save_data_dir, ratios="0.95,1.0,1.0", ke
   write_some_data(eval_s, eval_t, eval_dir)
   write_some_data(test_s, test_t, test_dir)
 
-  generate_vocb(generate_vocb_script_path, save_data_dir)
+  if seq2seq_path is not None:
+    global_gen_vocb_script_path = join(seq2seq_path, "bin/tools/generate_vocab.py")
+  elif global_gen_vocb_script_path is None:
+    raise ValueError("No seq2seq found")
+  generate_vocb(global_gen_vocb_script_path, save_data_dir)
   get_unique_ques(source_data_path, join(save_data_dir, "all_ques.txt"), add_dual=True)
 
 @click.command()
@@ -269,8 +279,8 @@ def make_sep_datasets(source_data_path, save_data_dir, ratios="0.95,1.0,1.0", ke
 @click.argument("save_data_dir")
 @click.option("--sample_size", default=None, help="sample size, None mean all")
 @click.option("--ratios", default="0.95,1.0,1.0", help="train,dev,test split ratio")
-
-def make_inter_datasets(source_data_path, save_data_dir,ratios="0.95,1.0,1.0", sample_size=None):
+@click.option("--seq2seq_path", default=None, help="seq2seq dir")
+def make_inter_datasets(source_data_path, save_data_dir,ratios="0.95,1.0,1.0", sample_size=None,seq2seq_path=None):
 
     from os.path import join
 
@@ -278,10 +288,15 @@ def make_inter_datasets(source_data_path, save_data_dir,ratios="0.95,1.0,1.0", s
     if len(ratio_list) != 3:
         raise ValueError("error in {}, must sure 3 elements like 0.95,1.0,1.0".format(ratios))
 
+    if seq2seq_path is not None:
+      global_gen_vocb_script_path = join(seq2seq_path, "bin/tools/generate_vocab.py")
+    elif global_gen_vocb_script_path is None:
+      raise ValueError("No seq2seq found")
+
     sample_sources, sample_targets = sample_ques_pairs(source_data_path, sample_size)
     make_train_test_dev(sample_sources, sample_targets, save_data_dir, ratio_split=ratio_list)
 
-    generate_parallel_vocbs(generate_vocb_script_path, save_data_dir)
+    generate_parallel_vocbs(global_gen_vocb_script_path, save_data_dir)
 
 cli.add_command(make_inter_datasets)
 cli.add_command(make_sep_datasets)
