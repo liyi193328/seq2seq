@@ -27,6 +27,7 @@ import tempfile
 import json
 import yaml
 
+import seq2seq.contrib
 from seq2seq.contrib import estimator as Estimator
 from seq2seq.contrib import learn_runner
 # from tensorflow.contrib.learn.python.learn import learn_runner
