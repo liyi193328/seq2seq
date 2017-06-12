@@ -62,7 +62,8 @@ def get_q2q_file_sinle_pro(file_path, save_path, parallels=1, time_dealy=2):
 
   jsonWrite(results, save_path , indent=2)
 
-def get_q2q_file(file_path, save_path, parallels=MP.cpu_count() - 2, time_dealy=2, in_one_line=False, delimiter="\t"):
+def get_q2q_file(file_path, save_path, parallels=MP.cpu_count() - 2, time_dealy=2,
+                 in_one_line=False, delimiter="\t", join_space=False):
 
   # file_path is tokenized
   f = codecs.open(file_path, "r","utf-8")
@@ -86,9 +87,10 @@ def get_q2q_file(file_path, save_path, parallels=MP.cpu_count() - 2, time_dealy=
       s = line0
       t = f.readline()
       f.readline()
-
-    s = split_join(s)
-    t = split_join(t)
+    s , t = s.strip(), t.strip()
+    if join_space:
+      s = split_join(s)
+      t = split_join(t)
     s = s.replace("SEQUENCE_END", "")
     t = t.replace("SEQUENCE_END", "")
     pro = pool.apply_async( get_q2q_sim, args=(s,t,) )
@@ -98,6 +100,8 @@ def get_q2q_file(file_path, save_path, parallels=MP.cpu_count() - 2, time_dealy=
     if len(pros) % 3000 == 0:
       print("waiting for {} secs".format(time_dealy))
       time.sleep(time_dealy)
+
+  nums = len(pros)
   for i, pro in enumerate(pros):
     outputs = pro.get().strip()
     try:
@@ -114,8 +118,12 @@ def get_q2q_file(file_path, save_path, parallels=MP.cpu_count() - 2, time_dealy=
       results[i]["score"] = -1
       print(results[i])
       traceback.print_exc()
+    if i and i % 100000 == 0:
+      save_tmp_path = save_path + ".2f"%(str(float(i)/nums))
+      jsonWrite(results, save_tmp_path, indent=2)
 
   jsonWrite(results,save_path,indent=2)
+
 
 if __name__ == "__main__":
 
@@ -124,7 +132,7 @@ if __name__ == "__main__":
   parser = argparse.ArgumentParser()
   parser.add_argument("file_path", type=str, help="model preidct path")
   parser.add_argument("save_path", type=str, help="save result path")
-  parser.add_argument("--pnums", default=max(1, MP.cpu_count() - 5), type=int, help="parallels")
+  parser.add_argument("--pnums", default=max(1, MP.cpu_count() - 5), type=int, help="parallels[cpu.count - 5]")
   args = parser.parse_args()
 
   get_q2q_file(args.file_path, args.save_path,parallels=args.pnums)
