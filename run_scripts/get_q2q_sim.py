@@ -34,7 +34,7 @@ def jsonWrite(d, file_path, indent=2):
 def split_join(s):
   return "".join(s.strip().split())
 
-def get_q2q_file_sinle_pro(file_path, save_path, parallels=1, time_dealy=2, join_space=False,
+def get_q2q_file_sinle_pro(file_path, save_path, parallels=1, time_dealy=2,
                            delimiter="\t",in_one_line=True):
   # file_path is tokenized file
   f = codecs.open(file_path, "r","utf-8")
@@ -58,14 +58,13 @@ def get_q2q_file_sinle_pro(file_path, save_path, parallels=1, time_dealy=2, join
       s = line0
       t = f.readline()
       f.readline()
-    s, t = s.strip(), t.strip()
-    if join_space:
-      s = split_join(s)
-      t = split_join(t)
+    tokenized_s, tokenized_t = s.strip(), t.strip()
+    s = split_join(s)
+    t = split_join(t)
     s = s.replace("SEQUENCE_END", "")
     t = t.replace("SEQUENCE_END", "")
     outputs = get_q2q_sim(s,t)
-    tmp_dict = {"source":s, "pred":t}
+    tmp_dict = {"source":tokenized_s, "pred":tokenized_t}
     try:
       rj = json.loads(outputs.strip())
       if "data" not in rj:
@@ -91,7 +90,7 @@ def get_q2q_file_sinle_pro(file_path, save_path, parallels=1, time_dealy=2, join
   jsonWrite(results, save_path , indent=2)
 
 def get_q2q_file(file_path, save_path, parallels=MP.cpu_count() - 2, time_dealy=1,
-                 in_one_line=True, delimiter="\t", join_space=False):
+                 in_one_line=True, delimiter="\t"):
 
   # file_path is tokenized
   f = codecs.open(file_path, "r","utf-8")
@@ -115,17 +114,16 @@ def get_q2q_file(file_path, save_path, parallels=MP.cpu_count() - 2, time_dealy=
       s = line0
       t = f.readline()
       f.readline()
-    s , t = s.strip(), t.strip()
-    if join_space:
-      s = split_join(s)
-      t = split_join(t)
+    tokenized_s , tokenized_t = s.strip(), t.strip()
+    s = split_join(tokenized_s)
+    t = split_join(tokenized_t)
     s = s.replace("SEQUENCE_END", "")
     t = t.replace("SEQUENCE_END", "")
-    pro = pool.apply_async( get_q2q_sim, args=(s,t,) )
+    pro = pool.apply_async( get_q2q_sim, args=(s, t,) )
     pros.append(pro)
     print("{}th process starts...".format(len(pros)))
-    results.append({"source":s, "predict":t})
-    if len(pros) % 30000 == 0:
+    results.append({"source":tokenized_s, "predict":tokenized_t})
+    if len(pros) % 100000 == 0:
       print("waiting for {} secs".format(time_dealy))
       time.sleep(time_dealy)
 
