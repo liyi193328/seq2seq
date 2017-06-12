@@ -78,6 +78,7 @@ def get_q2q_file_sinle_pro(file_path, save_path, parallels=1, time_dealy=2, join
           tmp_dict["score"] = -1
     except Exception:
       tmp_dict["score"] = -1
+      print(tmp_dict.values())
       print(outputs)
       traceback.print_exc()
     results.append(tmp_dict)
@@ -90,7 +91,7 @@ def get_q2q_file_sinle_pro(file_path, save_path, parallels=1, time_dealy=2, join
   jsonWrite(results, save_path , indent=2)
 
 def get_q2q_file(file_path, save_path, parallels=MP.cpu_count() - 2, time_dealy=2,
-                 in_one_line=False, delimiter="\t", join_space=False):
+                 in_one_line=True, delimiter="\t", join_space=False):
 
   # file_path is tokenized
   f = codecs.open(file_path, "r","utf-8")
