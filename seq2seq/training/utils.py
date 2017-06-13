@@ -260,6 +260,8 @@ def create_input_fn(pipeline,
       data_provider = pipeline.make_data_provider()
       features_and_labels = pipeline.read_from_data_provider(data_provider)
 
+      # here batch get source_len, source_tokens, and(target_tokens, target_len), only pad source_tokens
+      # because only source_tokens can variable len with None, fixed len in tf.paddingFIFOQueue is not padded
       if bucket_boundaries:
         _, batch = tf.contrib.training.bucket_by_sequence_length(
             input_length=features_and_labels["source_len"],
