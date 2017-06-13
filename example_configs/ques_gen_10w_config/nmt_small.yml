@@ -34,5 +34,3 @@ model_params:
 #  inference.beam_search.beam_width: 3
   target.max_seq_len: 50
   embedding.share: True
-  vocab_source: /home/bigdata/active_project/test_seq2seq_py2/yard_seq2seq/data/ques_10w/data/vocab/shared.vocab.txt
-  vocab_target: /home/bigdata/active_project/test_seq2seq_py2/yard_seq2seq/data/ques_10w/data/vocab/shared.vocab.txt

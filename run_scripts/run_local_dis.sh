@@ -1,14 +1,7 @@
 #! /bin/bash/ env
 
-SAVE_DIR=${save_dir:-"/home/bigdata/active_project/test_seq2seq_py2/yard_seq2seq/q2q_sim_95_80"}
-MODEL_NAME=${model_name:-"add_residual_connections"}
-CONFIG_DIR=${conf_dir:-"../example_configs/q2q_12w"}
-SEQ2SEQ_PROJECT=${seq2seq_project:-"/home/bigdata/active_project/seq2seq"}
-echo "data_dir:${SAVE_DIR}"
-echo "model_name:${MODEL_NAME}"
-echo "seq2seq_project:${SEQ2SEQ_PROJECT}"
-echo "config_dir:${CONFIG_DIR}"
-
+SEQ2SEQ_PROJECT_DIR=${SEQ2SEQ_PROJECT_DIR:=/home/bigdata/active_project/seq2seq}
+echo "seq2seq_project_dir:$SEQ2SEQ_PROJECT_DIR"
 
 #TASK_NAME=ques_10w
 TASK_NAME=${TASK_NAME:=ques_gen_all}
@@ -17,7 +10,7 @@ MODEL_NAME=${MODEL_NAME:=model0}
 DATA_ROOT=${DATA_ROOT:=/home/bigdata/active_project/test_seq2seq_py2/yard_seq2seq}
 DEFAULT_MODEL_ROOT=$DATA_ROOT/${TASK_NAME}/model
 MODEL_DIR_ROOT=${MODEL_DIR_ROOT:=$DEFAULT_MODEL_ROOT}
-MAYBE_MODEL_DIR={MODEL_DIR_ROOT}/${MODEL_NAME}
+MAYBE_MODEL_DIR=${MODEL_DIR_ROOT}/${MODEL_NAME}
 MODEL_DIR=${MODEL_DIR:=$MAYBE_MODEL_DIR}
 mkdir -p ${MODEL_DIR}
 echo "MODEL_DIR: $MODEL_DIR"
@@ -46,24 +39,57 @@ DEV_TARGETS=$DATA_DIR/dev/targets.txt
 TEST_SOURCES=$DATA_DIR/test/sources.txt
 TEST_TARGETS=$DATA_DIR/test/targets.txt
 
+
+TRAIN_STEPS=${TRAIN_STEPS:=5000000}
+BATCH_SIZE=${BATCH_SIZE:=64}
+EVAL_EVERY_N_STEPS=${EVAL_EVERY_N_STEPS:=5000}
+SAVE_CHECK_SECS=${SAVE_CHECK_SECS:=1800}
+KEEP_CHECK_MAX=${KEEP_CHECK_MAX:=20}
+echo "#########"
+echo "TRAIN_STEPS:$TRAIN_STEPS"
+echo "BATCH_SIZE:$BATCH_SIZE"
+echo "EVAL_EVERY_N_STEPS: $EVAL_EVERY_N_STEPS"
+echo "#########"
+
 LOG_DIR=${TASK_ROOT}/log
 mkdir -p ${LOG_DIR}
 
 export CUDA_VISIBLE_DEVICES="";
-python $SEQ2SEQ_PROJECT/bin/train.py \
+python $SEQ2SEQ_PROJECT_DIR/bin/train.py \
+--config_path="$CONFIG_DIR/nmt_small.yml, $CONFIG_DIR/train_seq2seq.yml, $CONFIG_DIR/text_metrics_bpe.yml" \
+--model_params="
+      vocab_source: $VOCAB_SOURCE
+      vocab_target: $VOCAB_TARGET" \
+--input_pipeline_train="
+  class: ParallelTextInputPipeline
+  params:
+    source_files:
+      - $TRAIN_SOURCES
+    target_files:
+      - $TEST_TARGETS
+   " \
+--input_pipeline_dev="
+  class: ParallelTextInputPipeline
+  params:
+    source_files:
+      - $DEV_SOURCES
+    target_files:
+      - $DEV_TARGETS
+   " \
 --config_path="$CONFIG_DIR/nmt_small.yml, $CONFIG_DIR/train_seq2seq.yml, $CONFIG_DIR/text_metrics_bpe.yml" \
 --ps_hosts="localhost:2222" --worker_hosts="localhost:2223,localhost:2224,localhost:2225" --job_name="ps" --task_index=0 --cloud=True --schedule="default" \
---output_dir="${MODEL_DIR}" --gpu_memory_fraction=1 --eval_every_n_steps=${EVAL_EVERY_N_STEPS}
+--output_dir="${MODEL_DIR}" --gpu_memory_fraction=1 --eval_every_n_steps=${EVAL_EVERY_N_STEPS} \
 --train_steps=$TRAIN_STEPS --batch_size=$BATCH_SIZE --save_checkpoints_secs=1200 \
---keep_checkpoint_max=10 clear_output_dir=False > ${LOG_DIR}/ps_${MODEL_NAME}.log 2>&1 &
+--keep_checkpoint_max=$KEEP_CHECK_MAX clear_output_dir=False \
+> ${LOG_DIR}/ps_${MODEL_NAME}.log 2>&1 &
 
 export CUDA_VISIBLE_DEVICES="0";
-python $SEQ2SEQ_PROJECT/bin/train.py \
+python $SEQ2SEQ_PROJECT_DIR/bin/train.py \
 --config_path="$CONFIG_DIR/nmt_small.yml, $CONFIG_DIR/train_seq2seq.yml, $CONFIG_DIR/text_metrics_bpe.yml" \
-  --model_params="
+--model_params="
       vocab_source: $VOCAB_SOURCE
       vocab_target: $VOCAB_TARGET" \
-  --input_pipeline_train="
+--input_pipeline_train="
   class: ParallelTextInputPipeline
   params:
     source_files:
@@ -71,7 +97,7 @@ python $SEQ2SEQ_PROJECT/bin/train.py \
     target_files:
       - $TEST_TARGETS
    " \
-   --input_pipeline_dev="
+--input_pipeline_dev="
   class: ParallelTextInputPipeline
   params:
     source_files:
@@ -79,17 +105,19 @@ python $SEQ2SEQ_PROJECT/bin/train.py \
     target_files:
       - $DEV_TARGETS
    " \
---ps_hosts="localhost:2222" --worker_hosts="localhost:2223,localhost:2224,localhost:2225" --job_name="worker" --task_index=0 --cloud=True --schedule="train" \
---output_dir="${MODEL_DIR}" --gpu_memory_fraction=0.5 --eval_every_n_steps=${EVAL_EVERY_N_STEPS}
+--ps_hosts="localhost:2222" --worker_hosts="localhost:2223,localhost:2224,localhost:2225" --job_name="worker" --task_index=0 \
+--cloud=True --schedule="train" \
+--output_dir="${MODEL_DIR}" --gpu_memory_fraction=0.5 --eval_every_n_steps=${EVAL_EVERY_N_STEPS} \
 --train_steps=$TRAIN_STEPS --batch_size=$BATCH_SIZE --save_checkpoints_secs=$SAVE_CHECK_SECS \
---keep_checkpoint_max=10 --clear_output_dir=False > ${LOG_DIR}/worker0_${MODEL_NAME}.log 2>&1 &
+--keep_checkpoint_max=$KEEP_CHECK_MAX --clear_output_dir=False \
+> ${LOG_DIR}/worker0_${MODEL_NAME}.log 2>&1 &
 
 export CUDA_VISIBLE_DEVICES="0";
-python $SEQ2SEQ_PROJECT/bin/train.py \
-  --model_params="
+python $SEQ2SEQ_PROJECT_DIR/bin/train.py \
+--model_params="
       vocab_source: $VOCAB_SOURCE
       vocab_target: $VOCAB_TARGET" \
-  --input_pipeline_train="
+--input_pipeline_train="
   class: ParallelTextInputPipeline
   params:
     source_files:
@@ -97,7 +125,7 @@ python $SEQ2SEQ_PROJECT/bin/train.py \
     target_files:
       - $TEST_TARGETS
    " \
-   --input_pipeline_dev="
+--input_pipeline_dev="
   class: ParallelTextInputPipeline
   params:
     source_files:
@@ -106,34 +134,38 @@ python $SEQ2SEQ_PROJECT/bin/train.py \
       - $DEV_TARGETS
    " \
 --config_path="$CONFIG_DIR/nmt_small.yml, $CONFIG_DIR/train_seq2seq.yml, $CONFIG_DIR/text_metrics_bpe.yml" \
---ps_hosts="localhost:2222" --worker_hosts="localhost:2223,localhost:2224,localhost:2225" --job_name="worker" --task_index=1 --cloud=True --schedule="train" \
---output_dir="${MODEL_DIR}" --gpu_memory_fraction=0.5 --eval_every_n_steps=${EVAL_EVERY_N_STEPS}
+--ps_hosts="localhost:2222" --worker_hosts="localhost:2223,localhost:2224,localhost:2225" --job_name="worker" \
+--task_index=1 --cloud=True --schedule="train" \
+--output_dir="${MODEL_DIR}" --gpu_memory_fraction=0.5 --eval_every_n_steps=${EVAL_EVERY_N_STEPS} \
 --train_steps=$TRAIN_STEPS --batch_size=$BATCH_SIZE --save_checkpoints_secs=$SAVE_CHECK_SECS \
---keep_checkpoint_max=10 --clear_output_dir=False > ${LOG_DIR}/worker1_${MODEL_NAME}.log 2>&1 &
+--keep_checkpoint_max=$KEEP_CHECK_MAX --clear_output_dir=False \
+> ${LOG_DIR}/worker1_${MODEL_NAME}.log 2>&1 &
 
 export CUDA_VISIBLE_DEVICES="";
-python $SEQ2SEQ_PROJECT/bin/train.py \
-  --model_params="
-      vocab_source: $VOCAB_SOURCE
-      vocab_target: $VOCAB_TARGET" \
-  --input_pipeline_train="
-  class: ParallelTextInputPipeline
-  params:
-    source_files:
-      - $TRAIN_SOURCES
-    target_files:
-      - $TEST_TARGETS
-   " \
-   --input_pipeline_dev="
-  class: ParallelTextInputPipeline
-  params:
-    source_files:
-      - $DEV_SOURCES
-    target_files:
-      - $DEV_TARGETS
-   " \
---config_path="$CONFIG_DIR/nmt_small.yml, $CONFIG_DIR/train_seq2seq.yml, $CONFIG_DIR/text_metrics_bpe.yml" \
---ps_hosts="localhost:2222" --worker_hosts="localhost:2223,localhost:2224,localhost:2225" --job_name="worker" --task_index=2 --cloud=True --schedule="continuous_eval" \
---output_dir="${MODEL_DIR}" --gpu_memory_fraction=1 --eval_every_n_steps=${EVAL_EVERY_N_STEPS}
---train_steps=$TRAIN_STEPS --batch_size=$BATCH_SIZE --save_checkpoints_secs=$SAVE_CHECK_SECS \
---keep_checkpoint_max=10 --clear_output_dir=False > ${LOG_DIR}/worker2_${MODEL_NAME}.log 2>&1 &
+python $SEQ2SEQ_PROJECT_DIR/bin/train.py \
+    --model_params="
+          vocab_source: $VOCAB_SOURCE
+          vocab_target: $VOCAB_TARGET" \
+    --input_pipeline_train="
+      class: ParallelTextInputPipeline
+      params:
+        source_files:
+          - $TRAIN_SOURCES
+        target_files:
+          - $TEST_TARGETS
+       " \
+    --input_pipeline_dev="
+      class: ParallelTextInputPipeline
+      params:
+        source_files:
+          - $DEV_SOURCES
+        target_files:
+          - $DEV_TARGETS
+       " \
+    --config_path="$CONFIG_DIR/nmt_small.yml, $CONFIG_DIR/train_seq2seq.yml, $CONFIG_DIR/text_metrics_bpe.yml" \
+    --ps_hosts="localhost:2222" --worker_hosts="localhost:2223,localhost:2224,localhost:2225" --job_name="worker" \
+    --task_index=2 --cloud=True --schedule="continuous_eval" \
+    --output_dir="${MODEL_DIR}" --gpu_memory_fraction=1 --eval_every_n_steps=${EVAL_EVERY_N_STEPS} \
+    --train_steps=$TRAIN_STEPS --batch_size=$BATCH_SIZE --save_checkpoints_secs=$SAVE_CHECK_SECS \
+    --keep_checkpoint_max=$KEEP_CHECK_MAX --clear_output_dir=False \
+    > ${LOG_DIR}/worker2_${MODEL_NAME}.log 2>&1 &

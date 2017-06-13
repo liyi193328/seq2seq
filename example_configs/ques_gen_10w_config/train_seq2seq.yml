@@ -9,19 +9,3 @@ hooks:
 
 #eval_hooks:
 #  - class: EvaluationSaveSampleHook
-
-input_pipeline_train:
-  class: ParallelTextInputPipeline
-  params:
-    source_files:
-      - /home/bigdata/active_project/test_seq2seq_py2/yard_seq2seq/data/ques_10w/data/train/sources.txt
-    target_files:
-      - /home/bigdata/active_project/test_seq2seq_py2/yard_seq2seq/data/ques_10w/data/train/targets.txt
-
-input_pipeline_dev:
-  class: ParallelTextInputPipeline
-  params:
-    source_files:
-      - /home/bigdata/active_project/test_seq2seq_py2/yard_seq2seq/data/ques_10w/data/dev/sources.txt
-    target_files:
-      - /home/bigdata/active_project/test_seq2seq_py2/yard_seq2seq/data/ques_10w/data/dev/targets.txt
