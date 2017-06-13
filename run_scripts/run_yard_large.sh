@@ -62,7 +62,7 @@ echo "DATA_DIR: ${DATA_DIR}"
 CLEAR_OUTPUT_DIR=${CLEAR_OUTPUT_DIR:=False}
 
 VOCAB_SOURCE=$DATA_DIR/vocab/shared.vocab.txt
-VOCAB_TAEGET=$DATA_DIR/vocab/shared.vocab.txt
+VOCAB_TARGET=$DATA_DIR/vocab/shared.vocab.txt
 TRAIN_SOURCES=$DATA_DIR/train/sources.txt
 TRAIN_TARGETS=$DATA_DIR/train/targets.txt
 DEV_SOURCES=$DATA_DIR/dev/sources.txt
@@ -93,6 +93,9 @@ python -m bin.train \
       $CONFIG_DIR/nmt_small.yml,
       $CONFIG_DIR/train_seq2seq.yml,
       $CONFIG_DIR/text_metrics_bpe.yml" \
+  --model_params="
+      vocab_source: $VOCAB_SOURCE
+      vocab_target: $VOCAB_TARGET" \
   --input_pipeline_train="
   class: ParallelTextInputPipeline
   params:
