@@ -207,10 +207,11 @@ def cli():
 @click.argument("save_data_dir")
 @click.option("--sample_size", default=None, help="sample size, None mean all")
 @click.option("--ratios", default="0.95,1.0,1.0", help="train,dev,test split ratio")
+@click.option("--add_dual/--no-add_dual", deault=False, help="whether add dual pair from target to source")
 @click.option("--seq2seq_path", default=None, help="seq2seq dir")
 def make_sep_datasets(source_data_path, save_data_dir, ratios="0.95,1.0,1.0",
                       keep=None, sample_size=None,
-                      add_dual=True, seq2seq_path=None):
+                      add_dual=False, seq2seq_path=None):
 
   from os.path import join
   global  global_gen_vocb_script_path
