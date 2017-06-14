@@ -209,7 +209,7 @@ def cli():
 @click.option("--ratios", default="0.95,1.0,1.0", help="train,dev,test split ratio")
 @click.option("--add_dual/--no-add_dual", default=False, help="whether add dual pair from target to source")
 @click.option("--seq2seq_path", default=None, help="seq2seq dir")
-@cli.option("--max_vocab_size", default=50000, help="max vocab size(from high to low freq)[50000]")
+@click.option("--max_vocab_size", default=50000, help="max vocab size(from high to low freq)[50000]")
 def make_sep_datasets(source_data_path, save_data_dir, ratios="0.95,1.0,1.0",
                       keep=None, sample_size=None,max_vocab_size=50000,
                       add_dual=False, seq2seq_path=None):

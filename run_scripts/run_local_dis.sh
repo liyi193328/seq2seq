@@ -78,7 +78,7 @@ python $SEQ2SEQ_PROJECT_DIR/bin/train.py \
    " \
 --config_path="$CONFIG_DIR/nmt_small.yml, $CONFIG_DIR/train_seq2seq.yml, $CONFIG_DIR/text_metrics_bpe.yml" \
 --ps_hosts="localhost:2222" --worker_hosts="localhost:2223,localhost:2224,localhost:2225" --job_name="ps" --task_index=0 --cloud=True --schedule="default" \
---output_dir="${MODEL_DIR}" --gpu_memory_fraction=1 --eval_every_n_steps=${EVAL_EVERY_N_STEPS} \
+--output_dir=${MODEL_DIR} --gpu_memory_fraction=1 --eval_every_n_steps=${EVAL_EVERY_N_STEPS} \
 --train_steps=$TRAIN_STEPS --batch_size=$BATCH_SIZE --save_checkpoints_secs=$SAVE_CHECK_SECS \
 --keep_checkpoint_max=$KEEP_CHECK_MAX --clear_output_dir=False \
 > ${LOG_DIR}/ps_${MODEL_NAME}.log 2>&1 &
@@ -107,7 +107,7 @@ python $SEQ2SEQ_PROJECT_DIR/bin/train.py \
    " \
 --ps_hosts="localhost:2222" --worker_hosts="localhost:2223,localhost:2224,localhost:2225" --job_name="worker" --task_index=0 \
 --cloud=True --schedule="train" \
---output_dir="${MODEL_DIR}" --gpu_memory_fraction=0.5 --eval_every_n_steps=${EVAL_EVERY_N_STEPS} \
+--output_dir=${MODEL_DIR} --gpu_memory_fraction=0.5 --eval_every_n_steps=${EVAL_EVERY_N_STEPS} \
 --train_steps=$TRAIN_STEPS --batch_size=$BATCH_SIZE --save_checkpoints_secs=$SAVE_CHECK_SECS \
 --keep_checkpoint_max=$KEEP_CHECK_MAX --clear_output_dir=False \
 > ${LOG_DIR}/worker0_${MODEL_NAME}.log 2>&1 &
@@ -136,7 +136,7 @@ python $SEQ2SEQ_PROJECT_DIR/bin/train.py \
 --config_path="$CONFIG_DIR/nmt_small.yml, $CONFIG_DIR/train_seq2seq.yml, $CONFIG_DIR/text_metrics_bpe.yml" \
 --ps_hosts="localhost:2222" --worker_hosts="localhost:2223,localhost:2224,localhost:2225" --job_name="worker" \
 --task_index=1 --cloud=True --schedule="train" \
---output_dir="${MODEL_DIR}" --gpu_memory_fraction=0.5 --eval_every_n_steps=${EVAL_EVERY_N_STEPS} \
+--output_dir=${MODEL_DIR} --gpu_memory_fraction=0.5 --eval_every_n_steps=${EVAL_EVERY_N_STEPS} \
 --train_steps=$TRAIN_STEPS --batch_size=$BATCH_SIZE --save_checkpoints_secs=$SAVE_CHECK_SECS \
 --keep_checkpoint_max=$KEEP_CHECK_MAX --clear_output_dir=False \
 > ${LOG_DIR}/worker1_${MODEL_NAME}.log 2>&1 &
@@ -165,7 +165,7 @@ python $SEQ2SEQ_PROJECT_DIR/bin/train.py \
     --config_path="$CONFIG_DIR/nmt_small.yml, $CONFIG_DIR/train_seq2seq.yml, $CONFIG_DIR/text_metrics_bpe.yml" \
     --ps_hosts="localhost:2222" --worker_hosts="localhost:2223,localhost:2224,localhost:2225" --job_name="worker" \
     --task_index=2 --cloud=True --schedule="continuous_eval" \
-    --output_dir="${MODEL_DIR}" --gpu_memory_fraction=1 --eval_every_n_steps=${EVAL_EVERY_N_STEPS} \
+    --output_dir=${MODEL_DIR} --gpu_memory_fraction=1 --eval_every_n_steps=${EVAL_EVERY_N_STEPS} \
     --train_steps=$TRAIN_STEPS --batch_size=$BATCH_SIZE --save_checkpoints_secs=$SAVE_CHECK_SECS \
     --keep_checkpoint_max=$KEEP_CHECK_MAX --clear_output_dir=False \
     > ${LOG_DIR}/worker2_${MODEL_NAME}.log 2>&1 &
