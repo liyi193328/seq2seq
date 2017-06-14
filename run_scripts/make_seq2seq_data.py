@@ -144,19 +144,19 @@ def make_train_test_dev(source, target, out_dir,ratio_split=None):
     write_some_data( source[train_index:dev_index], target[train_index:dev_index] , dev_dir)
     write_some_data( source[dev_index:], target[dev_index:] , test_dir)
 
-def generate_vocb(script_path, tokenized_file, vocb_path):
+def generate_vocb(script_path, tokenized_file, vocb_path, max_vocab_size=50000):
     script_path = os.path.abspath(script_path)
     tokenized_file = os.path.abspath(tokenized_file)
     vocb_path = os.path.abspath(vocb_path)
     if os.path.exists(os.path.dirname(vocb_path)) == False:
         os.makedirs(os.path.dirname(vocb_path))
-    cmd = "python {} < {} > {} --min_frequency 4".format(script_path, tokenized_file, vocb_path)
+    cmd = "python {} < {} > {} --min_frequency 4 --max_vocab_size={}".format(script_path, tokenized_file, vocb_path,max_vocab_size)
     print("lanch : {}...".format(cmd))
     r=subprocess.run(cmd, shell=True, check=True)
     print(r)
     filter_illegal(vocb_path)
 
-def generate_parallel_vocbs(generate_vocb_script_path, data_dir):
+def generate_parallel_vocbs(generate_vocb_script_path, data_dir,max_vocab_size=50000):
     train_source_path = join(data_dir, "train/sources.txt")
     train_source_vocab_path = join(data_dir, "vocab/vocab.sources.txt")
     train_target_path = join(data_dir, "train/targets.txt")
@@ -164,7 +164,7 @@ def generate_parallel_vocbs(generate_vocb_script_path, data_dir):
     merge_path = join(data_dir, "train/merge_train_target.txt")
     shared_vocab_path = join(data_dir, "vocab/shared.vocab.txt")
     merge_files([train_source_path, train_target_path], merge_path)
-    generate_vocb(generate_vocb_script_path, merge_path, shared_vocab_path)
+    generate_vocb(generate_vocb_script_path, merge_path, shared_vocab_path, max_vocab_size=max_vocab_size)
     os.remove(merge_path)
 
 def get_source_target(qs, keys, xs, ys,keep_one=False):
@@ -209,8 +209,9 @@ def cli():
 @click.option("--ratios", default="0.95,1.0,1.0", help="train,dev,test split ratio")
 @click.option("--add_dual/--no-add_dual", default=False, help="whether add dual pair from target to source")
 @click.option("--seq2seq_path", default=None, help="seq2seq dir")
+@cli.option("--max_vocab_size", default=50000, help="max vocab size(from high to low freq)[50000]")
 def make_sep_datasets(source_data_path, save_data_dir, ratios="0.95,1.0,1.0",
-                      keep=None, sample_size=None,
+                      keep=None, sample_size=None,max_vocab_size=50000,
                       add_dual=False, seq2seq_path=None):
 
   from os.path import join
@@ -277,7 +278,7 @@ def make_sep_datasets(source_data_path, save_data_dir, ratios="0.95,1.0,1.0",
   elif global_gen_vocb_script_path is None:
     raise ValueError("No seq2seq found")
 
-  generate_parallel_vocbs(global_gen_vocb_script_path, save_data_dir)
+  generate_parallel_vocbs(global_gen_vocb_script_path, save_data_dir, max_vocab_size=max_vocab_size)
   get_unique_ques(source_data_path, join(save_data_dir, "all_ques.txt"), add_dual=True)
 
 @click.command()
