@@ -14,14 +14,14 @@ input_pipeline_train:
   class: ParallelTextInputPipeline
   params:
     source_files:
-      - /mnt/yardcephfs/mmyard/g_wxg_td_prc/turingli/q2q_sim_95/data/train/sources.txt
+      - /home/bigdata/active_project/test_seq2seq_py2/yard_seq2seq/data/q2q_12w_cancel_dup/data/train/sources.txt
     target_files:
-      - /mnt/yardcephfs/mmyard/g_wxg_td_prc/turingli/q2q_sim_95/data/train/targets.txt
+      - /home/bigdata/active_project/test_seq2seq_py2/yard_seq2seq/data/q2q_12w_cancel_dup/data/train/targets.txt
 
 input_pipeline_dev:
   class: ParallelTextInputPipeline
   params:
     source_files:
-      - /mnt/yardcephfs/mmyard/g_wxg_td_prc/turingli/q2q_sim_95/data/dev/sources.txt
+      - /home/bigdata/active_project/test_seq2seq_py2/yard_seq2seq/data/q2q_12w_cancel_dup/data/dev/sources.txt
     target_files:
-      - /mnt/yardcephfs/mmyard/g_wxg_td_prc/turingli/q2q_sim_95//dev/targets.txt
+      - /home/bigdata/active_project/test_seq2seq_py2/yard_seq2seq/data/q2q_12w_cancel_dup/data/dev/targets.txt
