@@ -93,6 +93,23 @@ python -m bin.train \
       $CONFIG_DIR/nmt_small.yml,
       $CONFIG_DIR/train_seq2seq.yml,
       $CONFIG_DIR/text_metrics_bpe.yml" \
+  $1 \
+  $2 \
+  $3 \
+  $4 \
+  --allow_soft_placement=True \
+  --gpu_allow_growth=True \
+  --cloud=True \
+  --schedule="default" \
+  --batch_size=$BATCH_SIZE \
+  --train_steps=$TRAIN_STEPS \
+  --eval_every_n_steps=${EVAL_EVERY_N_STEPS} \
+  --output_dir=$MODEL_DIR \
+  --clear_output_dir=${CLEAR_OUTPUT_DIR} \
+  --save_checkpoints_secs=$SAVE_CHECK_SECS \
+  --keep_checkpoint_max=$KEEP_CHECK_MAX \
+  --set_eval_node=1
+
 #  --model_params="
 #      vocab_source: $VOCAB_SOURCE
 #      vocab_target: $VOCAB_TARGET" \
@@ -112,21 +129,3 @@ python -m bin.train \
 #    target_files:
 #      - $DEV_TARGETS
 #   " \
-  $1 \
-  $2 \
-  $3 \
-  $4 \
-  --allow_soft_placement=True \
-  --gpu_allow_growth=True \
-  --cloud=True \
-  --schedule="default" \
-  --batch_size=$BATCH_SIZE \
-  --train_steps=$TRAIN_STEPS \
-  --eval_every_n_steps=${EVAL_EVERY_N_STEPS} \
-  --output_dir=$MODEL_DIR \
-  --clear_output_dir=${CLEAR_OUTPUT_DIR} \
-  --save_checkpoints_secs=$SAVE_CHECK_SECS \
-  --keep_checkpoint_max=$KEEP_CHECK_MAX \
-  --set_eval_node=1
-
-
