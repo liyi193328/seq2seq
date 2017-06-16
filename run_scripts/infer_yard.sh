@@ -5,8 +5,9 @@ echo "$@"
 
 ##changable according to your data dir and task
 
-echo "must enter the project seq2seq dir, then bash run_scripts/infer.sh"
-echo "export TASK_NAME=xx; export MODEL_NAME=xx; [export PRED_DIR=xx;] [export SAVE_PRED_NAME=xx;]  bash infer_yard.sh"
+echo "must enter the project seq2seq dir, then bash run_scripts/infer_yard.sh"
+echo "export TASK_NAME=xx; export MODEL_NAME=xx; [export PRED_DIR=xx;] [export SAVE_PRED_NAME=xx;] [export DATA_ROOT=xx;] "
+echo "bash infer_yard.sh"
 
 SEQ2SEQ_PROJECT_DIR=${PWD}
 #TASK_NAME=ques_10w
@@ -75,6 +76,7 @@ python -m bin.infer \
       params:
         file: ${PRED_DIR}/beams.npz" \
   --model_params "
+  inference.beam_search.length_penalty_weight: 1.0
   inference.beam_search.beam_width: $beam_width " \
   --model_dir $MODEL_DIR \
   --input_pipeline "
