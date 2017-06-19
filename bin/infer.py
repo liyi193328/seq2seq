@@ -59,18 +59,16 @@ tf.flags.DEFINE_string("checkpoint_path", None,
                        the latest checkpoint in the model dir is used.""")
 tf.flags.DEFINE_integer("batch_size", 32, "the train/dev batch size")
 tf.flags.DEFINE_string("save_pred_path", None, "save pred path[None], None is print only")
-tf.flags.DEFINE_integer("mgpus", None, "gpu cards in single machine[None]")
-tf.flags.DEFINE_string("gpu_index", None, "ith gpu in mgpus[None], from 0 begin, split by ,")
+tf.flags.DEFINE_string("job_name", None, "None | worker | ps")
+tf.flags.DEFINE_integer("task_index", None, "distributed worker index to infer")
+tf.flags.DEFINE_string("data_parts",None, "data parts, split by ,; every time infer data_parts[task_index]'s source data")
 FLAGS = tf.flags.FLAGS
 
-if FLAGS.mgpus is not None:
-  cuda_visible_devices = os.getenv("CUDA_VISIBLE_DEVICES")
-  if cuda_visible_devices is not None:
-    cuda_indexs = cuda_visible_devices.split(",")
-    need_gpu_indexs = FLAGS.gpu_index.split(",")
-    cuda_indexs = [ cuda_indexs[v] for v in need_gpu_indexs ]
-    os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(str(v) for v in cuda_indexs)
-  tf.logging.info("cuda_visible_devices:{}".format(os.getenv("CUDA_VISIBLE_DEVICES")))
+data_index = None
+if FLAGS.job_name == "worker" and FLAGS.task_index is not None:
+  all_data_parts = FLAGS.data_parts.split(",")
+  data_index = all_data_parts[FLAGS.task_index]
+  FLAGS.save_pred_path = FLAGS.save_pred_path + "_part_".format(data_index)
 
 def main(_argv):
   """Program entry point.
@@ -88,6 +86,10 @@ def main(_argv):
 
   if isinstance(FLAGS.input_pipeline, string_types):
     FLAGS.input_pipeline = _maybe_load_yaml(FLAGS.input_pipeline)
+
+  if data_index is not None:
+    source_prefix = FLAGS.input_pipeline["params"]["source_files"][0]
+    FLAGS.input_pipeline["params"]["source_files"][0] = source_prefix + "_part_{}".format(data_index)
 
   input_pipeline_infer = input_pipeline.make_input_pipeline_from_def(
       FLAGS.input_pipeline, mode=tf.contrib.learn.ModeKeys.INFER,

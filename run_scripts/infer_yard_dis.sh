@@ -8,9 +8,9 @@ mgpus=$1
 ##changable according to your data dir and task
 
 echo "must enter the project seq2seq dir, then bash run_scripts/infer_yard.sh"
-echo "export TASK_NAME=xx; export MODEL_NAME=xx;export SAVE_PRED_NAME=xx;"
+echo "export TASK_NAME=xx; export MODEL_NAME=xx;export SAVE_PRED_NAME=xx; export SAVE_PRED_NAME=xx"
 echo "[export SOURCE_PRED_PREFIX=xx;] [export SAVE_PRED_PREFIX=xx;] [export DATA_ROOT=xx;] [export SOURCE_NAME=all_ques] [export PRED_DIR=xx]"
-echo "bash infer_yard_mgpus.sh"
+echo "bash infer_yard_dis.sh"
 
 SEQ2SEQ_PROJECT_DIR=${PWD}
 #TASK_NAME=ques_10w
@@ -72,32 +72,27 @@ beam_width=${BEAM_WIDTH:=10}
 
 cd ${PROJECT_DIR}
 
-for ((i=0; i<$mgpus; i++))
-do
-    SOURCE_PATH=${SOURCE_PRED_PREFIX}_part_${i}
-    PRED_PATH=${SAVE_PRED_PREFIX}_part_${i}
-    echo "source_path:$SOURCE_PATH"
-    echo "pred_path:$PRED_PATH"
-    python -m bin.infer \
-      --tasks "
-        - class: DecodeText
-        - class: DumpBeams
-          params:
-            file: ${PRED_DIR}/${i}th_beams.npz" \
-      --model_params "
-      inference.beam_search.length_penalty_weight: 1.0
-      inference.beam_search.choose_successors_fn: choose_top_k_mask_unk
-      inference.beam_search.beam_width: $beam_width " \
-      --model_dir $MODEL_DIR \
-      --mgpus ${mgpus} \
-      --gpu_index ${i} \
-      --input_pipeline "
-        class: ParallelTextInputPipeline
-        params:
-          source_files:
-            - ${SOURCE_PATH}" \
-      --save_pred_path ${PRED_PATH} &
-done
+echo "source_pred_path:$SOURCE_PRED_PREFIX"
+echo "save_pred_path:$SAVE_PRED_PREFIX"
+
+python -m bin.infer \
+  --tasks "
+    - class: DecodeText "\
+  --model_params "
+  inference.beam_search.length_penalty_weight: 1.0
+  inference.beam_search.choose_successors_fn: choose_top_k_mask_unk
+  inference.beam_search.beam_width: $beam_width " \
+  --model_dir $MODEL_DIR \
+  $1 \
+  $2 \
+  $3 \
+  $4 \
+  --input_pipeline "
+    class: ParallelTextInputPipeline
+    params:
+      source_files:
+        - ${SOURCE_PRED_PREFIX}" \
+  --save_pred_path ${SAVE_PRED_PREFIX} &
 
 
 #  --tasks "
