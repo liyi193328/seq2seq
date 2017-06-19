@@ -77,14 +77,13 @@ do
     python -m bin.infer \
       --tasks "
         - class: DecodeText
-        - class: DumpBeams
           params:
-            file: ${PRED_DIR}/beams_${i}th.npz" \
+            unk_replace: True" \
       --model_params "
-      inference.beam_search.length_penalty_weight: 1.0
-      inference.beam_search.choose_successors_fn: choose_top_k_mask_unk
-      inference.beam_search.beam_width: $beam_width " \
+      inference.beam_search.choose_successors_fn: choose_top_k " \
       --model_dir $MODEL_DIR \
+      --single_machine \
+      --batch_size 64 \
       --job_name "worker" \
       --data_parts ${DATA_PARTS} \
       --task_index ${i} \
@@ -98,5 +97,10 @@ done
 wait
 echo "all is done"
 
-#  --tasks "
-#    - class: DecodeText"
+#      --tasks "
+#        - class: DecodeText
+#        - class: DumpBeams
+#          params:
+#            file: ${PRED_DIR}/beams_${i}th.npz"
+#      inference.beam_search.beam_width: $beam_width "
+#      inference.beam_search.length_penalty_weight: 1.0

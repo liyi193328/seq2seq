@@ -57,6 +57,7 @@ tf.flags.DEFINE_string("model_dir", None, "directory to load model from")
 tf.flags.DEFINE_string("checkpoint_path", None,
                        """Full path to the checkpoint to be loaded. If None,
                        the latest checkpoint in the model dir is used.""")
+tf.flags.DEFINE_boolean("single_machine", True, "in one machine or not[True]")
 tf.flags.DEFINE_integer("batch_size", 32, "the train/dev batch size")
 tf.flags.DEFINE_string("save_pred_path", None, "save pred path[None], None is print only")
 tf.flags.DEFINE_string("job_name", None, "None | worker | ps")
@@ -68,6 +69,13 @@ data_index = None
 if FLAGS.job_name == "worker" and FLAGS.task_index is not None:
   all_data_parts = FLAGS.data_parts.split(",")
   data_index = all_data_parts[FLAGS.task_index]
+  if FLAGS.single_machine is True:
+    cuda_visible_devices = os.getenv("CUDA_VISIBLE_DEVICES")
+    if cuda_visible_devices is not None:
+      gpu_th = cuda_visible_devices.split(",")[FLAGS.task_index]
+      os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_th)
+
+print("cuda_visible_devices:{}".format(os.getenv("CUDA_VISIBLE_DEVICES")))
 print ("date_index:{}".format(data_index))
 
 def main(_argv):
