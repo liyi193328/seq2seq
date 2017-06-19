@@ -5,6 +5,7 @@ import os
 import sys
 import codecs
 import six
+import math
 import shutil
 import subprocess
 import numpy as np
@@ -306,8 +307,30 @@ def make_inter_datasets(source_data_path, save_data_dir,ratios="0.95,1.0,1.0", s
 
     generate_parallel_vocbs(global_gen_vocb_script_path, save_data_dir)
 
+@click.command()
+@click.argument("file_path")
+@click.argument("save_prefix")
+@click.argument("parts", type=int)
+def partition_question(file_path, save_prefix, parts, delimiter="\t"):
+  save_dir = os.path.dirname(save_prefix)
+  if os.path.exists(save_dir)==False:
+    os.makedirs(save_dir)
+  lines = codecs.open(file_path, "r", "utf-8").readlines()
+  new_lines = []
+  for i, line in enumerate(lines):
+    new_lines.extend( line.strip().split(delimiter) )
+  every_part_nums = int( math.ceil( float(len(new_lines)) / parts ) )
+  for i in range(parts):
+    be = i * every_part_nums
+    en = min(len(new_lines), i * every_part_nums + every_part_nums)
+    d = new_lines[be:en]
+    print (i, len(d))
+    save_path = "{}_part_{}".format(save_prefix, i)
+    write_list_to_file(d, save_path)
+
 cli.add_command(make_inter_datasets)
 cli.add_command(make_sep_datasets)
+cli.add_command(partition_question)
 
 if __name__ == '__main__':
 

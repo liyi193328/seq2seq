@@ -1,6 +1,7 @@
 #encoding=utf-8
 
 """
+get file text's similiary through q2q service
 get q2q similariy from service
 curl -X POST -d '{"query":"你知罪吗", "question":"你知道错了吗"}' http://10.191.15.89:40919/cgi-bin/ranker/q2qsimilarity
 warp this comand for whole file
@@ -158,7 +159,7 @@ if __name__ == "__main__":
   # get_q2q_sim("我爱中国", "我爱中华人民共和国")
 
   parser = argparse.ArgumentParser()
-  parser.add_argument("file_path", type=str, help="model preidct path")
+  parser.add_argument("file_path", type=str, help="model predict path")
   parser.add_argument("save_path", type=str, help="save result path")
   parser.add_argument("--pnums", default=max(1, MP.cpu_count() - 5), type=int, help="parallels[cpu.count - 5]")
   args = parser.parse_args()
