@@ -68,7 +68,7 @@ data_index = None
 if FLAGS.job_name == "worker" and FLAGS.task_index is not None:
   all_data_parts = FLAGS.data_parts.split(",")
   data_index = all_data_parts[FLAGS.task_index]
-  FLAGS.save_pred_path = FLAGS.save_pred_path + "_part_".format(data_index)
+print ("date_index:{}".format(data_index))
 
 def main(_argv):
   """Program entry point.
@@ -117,6 +117,8 @@ def main(_argv):
     #get static global steps from checkpoint path
     global_steps = int(os.path.basename(checkpoint_path).split('-')[1])
   if FLAGS.save_pred_path is not None:
+    if data_index is not None:
+      FLAGS.save_pred_path = FLAGS.save_pred_path + "_pred_part_{}".format(data_index)
     FLAGS.save_pred_path = FLAGS.save_pred_path + "." + str(global_steps)
 
   # Load inference tasks
