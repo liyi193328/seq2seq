@@ -152,18 +152,21 @@ def choose_top_k_mask_unk(scores_flat, config):
   """
   base_unk_index = config.vocab_size - 3
   batch_size = tf.cast(tf.size(scores_flat) / config.vocab_size, tf.int32)
-  batch_size = tf.Print(batch_size, [batch_size], "batch_size:")
+  # batch_size = tf.Print(batch_size, [batch_size], "batch_size:")
   top_num = batch_size + config.beam_width #extra elements is for mask the unk indexs
-  all_unk_index = [base_unk_index + i*config.vocab_size for i in tf.unstack(tf.range(batch_size))]
+  # top_num = tf.Print(top_num, [top_num], "top_num:")
+  all_unk_index = base_unk_index + config.vocab_size * tf.range(batch_size)
   next_beam_scores, word_indices = tf.nn.top_k(scores_flat, k=top_num)
   unk_equal_mat = tf.equal( tf.expand_dims(word_indices, 1), tf.expand_dims(all_unk_index, 0) ) # [top_num, len(all_unk_index)]
   select_in_unk = tf.reduce_sum( tf.cast(unk_equal_mat, tf.int32), axis=1 ) #(top_num,), if some element is 1, that index is unk
   unk_mask = 1 - select_in_unk
-  unk_mask = tf.cast(select_in_unk, tf.bool)
+  unk_mask = tf.cast(unk_mask, tf.bool)
+  # unk_mask = tf.Print(unk_mask, [tf.reduce_sum(tf.cast(unk_mask, tf.int32))], "unk_mask sum:")
   next_beam_scores = tf.boolean_mask(next_beam_scores, unk_mask)
   word_indices = tf.boolean_mask(word_indices, unk_mask)
   next_beam_scores = next_beam_scores[0:config.beam_width]
   word_indices = word_indices[0:config.beam_width]
+  # next_beam_scores = tf.Print(next_beam_scores, [tf.shape(next_beam_scores)], "next_beam_scores shape:")
   return next_beam_scores, word_indices
 
 def nest_map(inputs, map_fn, name=None):
