@@ -86,6 +86,7 @@ do
             file: ${PRED_DIR}/${i}th_beams.npz" \
       --model_params "
       inference.beam_search.length_penalty_weight: 1.0
+      inference.beam_search.choose_successors_fn: choose_top_k_mask_unk
       inference.beam_search.beam_width: $beam_width " \
       --model_dir $MODEL_DIR \
       --mgpus ${mgpus} \
