@@ -3,7 +3,7 @@
 echo "get cloud extra info:"
 echo "$@"
 
-mgpus = $1
+mgpus=$1
 
 ##changable according to your data dir and task
 
@@ -68,11 +68,11 @@ PROJECT_DIR=${PWD}
 
 beam_width=${BEAM_WIDTH:=10}
 
-mkdir -p $PRED_DIR
+#mkdir -p $PRED_DIR
 
 cd ${PROJECT_DIR}
 
-for ((i=0; i < $mgpus; i++))
+for ((i=0; i<$mgpus; i++))
 do
     SOURCE_PATH=${SOURCE_PRED_PREFIX}_part_${i}
     PRED_PATH=${SAVE_PRED_PREFIX}_part_${i}
@@ -88,6 +88,8 @@ do
       inference.beam_search.length_penalty_weight: 1.0
       inference.beam_search.beam_width: $beam_width " \
       --model_dir $MODEL_DIR \
+      --mgpus ${mgpus} \
+      --gpu_index ${i} \
       --input_pipeline "
         class: ParallelTextInputPipeline
         params:
