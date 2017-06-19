@@ -8,7 +8,7 @@ mgpus=$1
 ##changable according to your data dir and task
 
 echo "must enter the project seq2seq dir, then bash run_scripts/infer_yard.sh"
-echo "export TASK_NAME=xx; export MODEL_NAME=xx;export SAVE_PRED_NAME=xx;"
+echo "export TASK_NAME=xx; export MODEL_NAME=xx;export SAVE_PRED_NAME=xx; export DATA_PARTS=xx"
 echo "[export SOURCE_PRED_PREFIX=xx;] [export SAVE_PRED_PREFIX=xx;] [export DATA_ROOT=xx;] [export SOURCE_NAME=all_ques] [export PRED_DIR=xx]"
 echo "bash infer_yard_mgpus.sh"
 
@@ -68,7 +68,7 @@ PROJECT_DIR=${PWD}
 
 beam_width=${BEAM_WIDTH:=10}
 
-#mkdir -p $PRED_DIR
+mkdir -p $PRED_DIR
 
 cd ${PROJECT_DIR}
 
@@ -86,7 +86,7 @@ do
       inference.beam_search.beam_width: $beam_width " \
       --model_dir $MODEL_DIR \
       --job_name "worker" \
-      --data_parts 2,3 \
+      --data_parts ${DATA_PARTS} \
       --task_index ${i} \
       --input_pipeline "
         class: ParallelTextInputPipeline
