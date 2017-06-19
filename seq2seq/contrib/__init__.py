@@ -21,6 +21,6 @@ from __future__ import print_function
 
 # pylint: disable=wildcard-import
 from . import util
-from . import *
+from . import monitored_session
 # from seq2seq.contrib.learn import *
 # pylint: enable=wildcard-import
