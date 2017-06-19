@@ -32,6 +32,7 @@ class AttentionDecoderOutput(
         "logits", "predicted_ids", "cell_output", "attention_scores",
         "attention_context"
     ])):
+
   """Augmented decoder output that also includes the attention scores.
   """
   pass

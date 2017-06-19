@@ -146,6 +146,27 @@ def choose_top_k(scores_flat, config):
   next_beam_scores, word_indices = tf.nn.top_k(scores_flat, k=config.beam_width)
   return next_beam_scores, word_indices
 
+def choose_top_k_mask_unk(scores_flat, config):
+  """ choose top k beams as successors mask unk index as 0(without unk)
+  :param scores_flat: flatten [b, vocab_size] to [-1], scores
+  """
+  base_unk_index = config.vocab_size - 3
+  batch_size = tf.cast(tf.size(scores_flat) / config.vocab_size, tf.int32)
+  batch_size = tf.Print(batch_size, [batch_size], "batch_size:")
+  all_unk_index = [base_unk_index + i*config.vocab_size for i in tf.unstack(tf.range(batch_size))]
+  tf.fill(tf.shape(scores_flat), np.)
+  vab_scores_flat = tf.Variable(scores_flat,validate_shape=False)
+  tf.scatter_update(vab_scores_flat, )
+
+  mask_unk_index = tf.one_hot(tf.tile([base_unk_index],[batch_size]), config.vocab_size, on_value=1.0, off_value=1.0)
+  unk_one_hot = tf.Print(mask_unk_index, [tf.shape(mask_unk_index)], "unk_one_hot shape:")
+  unk_mask = tf.reshape(mask_unk_index, [-1])
+  unk_mask = tf.Print(unk_mask, [unk_mask[0:100]], "unk_mask:")
+  mask_scores_flat = scores_flat * unk_mask
+  mask_scores_flat = tf.Print(mask_scores_flat, [ mask_scores_flat[0:100] ], "scores_flat(100):")
+  mask_scores_flat = tf.cast(mask_scores_flat, tf.float32)
+  next_beam_scores, word_indices = tf.nn.top_k(mask_scores_flat, k=config.beam_width)
+  return next_beam_scores, word_indices
 
 def nest_map(inputs, map_fn, name=None):
   """Applies a function to (possibly nested) tuple of tensors.
