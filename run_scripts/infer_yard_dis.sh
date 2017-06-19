@@ -87,12 +87,13 @@ python -m bin.infer \
   $2 \
   $3 \
   $4 \
+  --data_parts 0,1,2,3 \
   --input_pipeline "
     class: ParallelTextInputPipeline
     params:
       source_files:
         - ${SOURCE_PRED_PREFIX}" \
-  --save_pred_path ${SAVE_PRED_PREFIX} &
+  --save_pred_path ${SAVE_PRED_PREFIX}
 
 
 #  --tasks "
