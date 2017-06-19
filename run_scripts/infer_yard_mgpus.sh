@@ -95,7 +95,8 @@ do
             - ${SOURCE_PRED_PREFIX}" \
       --save_pred_path ${SAVE_PRED_PREFIX} &
 done
-
+wait
+echo "all is done"
 
 #  --tasks "
 #    - class: DecodeText"
