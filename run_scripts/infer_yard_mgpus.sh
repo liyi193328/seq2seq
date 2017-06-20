@@ -76,10 +76,9 @@ for ((i=0; i<$mgpus; i++))
 do
     python -m bin.infer \
       --tasks "
-        - class: DecodeText
-          params:
-            unk_replace: True" \
+        - class: DecodeText " \
       --model_params "
+      inference.beam_search.beam_width: $beam_width
       inference.beam_search.choose_successors_fn: choose_top_k " \
       --model_dir $MODEL_DIR \
       --single_machine \
@@ -104,3 +103,5 @@ echo "all is done"
 #            file: ${PRED_DIR}/beams_${i}th.npz"
 #      inference.beam_search.beam_width: $beam_width "
 #      inference.beam_search.length_penalty_weight: 1.0
+#          params:
+#            unk_replace: True" \
