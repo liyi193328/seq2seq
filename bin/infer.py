@@ -71,8 +71,12 @@ if FLAGS.job_name == "worker" and FLAGS.task_index is not None:
   if FLAGS.single_machine is True:
     cuda_visible_devices = os.getenv("CUDA_VISIBLE_DEVICES")
     if cuda_visible_devices is not None:
-      gpu_th = cuda_visible_devices.split(",")[FLAGS.task_index]
-      os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_th)
+      gpu_devices = cuda_visible_devices.split(",")
+      if FLAGS.task_index >= len(gpu_devices):
+        gpu_th = ""
+      else:
+        gpu_th = str(gpu_devices[FLAGS.task_index])
+      os.environ["CUDA_VISIBLE_DEVICES"] = gpu_th
 
 print("cuda_visible_devices:{}".format(os.getenv("CUDA_VISIBLE_DEVICES")))
 print ("date_index:{}".format(data_index))
