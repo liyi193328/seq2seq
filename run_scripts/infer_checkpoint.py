@@ -16,7 +16,8 @@ def cli():
 @click.argument("infer_path")
 @click.argument("ques_done_path")
 @click.argument("infer_done_path")
-def store_done_ques(ques_path, infer_path, ques_done_path, infer_done_path):
+@click.option("--overwrite", is_flag=False, help="over write the exist file when move")
+def store_done_ques(ques_path, infer_path, ques_done_path, infer_done_path, overwrite=False):
   source_lines = codecs.open(ques_path, "r", "utf-8").readlines()
   infer_lines = codecs.open(infer_path, "r", "utf-8").readlines()
   assert  len(infer_lines) % 3 == 0, "{}:{}".format(infer_path, len(infer_lines))
@@ -30,15 +31,14 @@ def store_done_ques(ques_path, infer_path, ques_done_path, infer_done_path):
       print (pred_source)
       print (source_lines[j])
       break
-    pred = infer_lines[i+1]
     i += 2
     j += 1
-  if os.path.exists(ques_done_path):
+  if os.path.exists(ques_done_path) and overwrite == False:
     done_ques_path = ques_done_path + ".do"
   make_seq2seq_data.write_list_to_file(source_lines[0:j], ques_done_path)
   undo_ques = source_lines[j:]
   make_seq2seq_data.write_list_to_file(undo_ques, ques_path)
-  if os.path.exists(infer_done_path):
+  if os.path.exists(infer_done_path) and overwrite == False:
     infer_done_path = infer_done_path + ".n"
   shutil.move(infer_path, infer_done_path)
   print ("move {} to {}".format(infer_path, infer_done_path))
