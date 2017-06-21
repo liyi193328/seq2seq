@@ -23,6 +23,7 @@ from __future__ import unicode_literals
 import functools
 from pydoc import locate
 
+import os
 import codecs
 import numpy as np
 
