@@ -26,6 +26,8 @@ def store_done_ques(ques_path, infer_path, ques_done_path, infer_done_path):
   j = 0
   while i < len(infer_lines):
     source = infer_lines[i]
+    print (source[i])
+    print (lines[j])
     assert  source.strip().replace("SEQUENCE_END", "") == lines[j].strip(), "{}-{}".format(source, lines[j])
     pred = infer_lines[i+1]
     i += 2
