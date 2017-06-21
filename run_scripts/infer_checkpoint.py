@@ -30,9 +30,10 @@ def store_done_ques(ques_path, infer_path, ques_done_path, infer_done_path, over
     if pred_source.replace("SEQUENCE_END", "").strip() != source_lines[j].strip():
       print (pred_source)
       print (source_lines[j])
-      break
-    i += 2
+      return
+    i += 3
     j += 1
+  print("already pred {} sents".format(j))
   if os.path.exists(ques_done_path) and overwrite == False:
     done_ques_path = ques_done_path + ".do"
   make_seq2seq_data.write_list_to_file(source_lines[0:j], ques_done_path)
