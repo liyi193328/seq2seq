@@ -17,25 +17,25 @@ def cli():
 @click.argument("ques_done_path")
 @click.argument("infer_done_path")
 def store_done_ques(ques_path, infer_path, ques_done_path, infer_done_path):
-  lines = codecs.open(ques_path, "r", "utf-8").readlines()
+  source_lines = codecs.open(ques_path, "r", "utf-8").readlines()
   infer_lines = codecs.open(infer_path, "r", "utf-8").readlines()
   assert  len(infer_lines) % 3 == 0, "{}:{}".format(infer_path, len(infer_lines))
   infer_ques_num = len(infer_lines) / 3
-  assert  infer_ques_num <= len(lines), "total {} source ques, but get {} pred ques".format(len(lines), infer_ques_num)
+  assert  infer_ques_num <= len(source_lines), "total {} source ques, but get {} pred ques".format(len(source_lines), infer_ques_num)
   i = 0
   j = 0
   while i < len(infer_lines):
-    source = infer_lines[i]
-    print (source[i])
-    print (lines[j])
-    assert  source.strip().replace("SEQUENCE_END", "") == lines[j].strip(), "{}-{}".format(source, lines[j])
+    pred_source = infer_lines[i]
+    print (pred_source)
+    print (source_lines[j])
+    assert  pred_source.strip().replace("SEQUENCE_END", "") == source_lines[j].strip(), "{}-{}".format(pred_source, source_lines[j])
     pred = infer_lines[i+1]
     i += 2
     j += 1
   if os.path.exists(ques_done_path):
     done_ques_path = ques_done_path + ".do"
-  make_seq2seq_data.write_list_to_file(lines[0:j], ques_done_path)
-  undo_ques = lines[j:]
+  make_seq2seq_data.write_list_to_file(source_lines[0:j], ques_done_path)
+  undo_ques = source_lines[j:]
   make_seq2seq_data.write_list_to_file(undo_ques, ques_path)
   if os.path.exists(infer_done_path):
     infer_done_path = infer_done_path + ".n"
