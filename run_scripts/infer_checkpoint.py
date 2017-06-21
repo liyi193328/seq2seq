@@ -26,12 +26,13 @@ def store_done_ques(ques_path, infer_path, ques_done_path, infer_done_path, over
   i = 0
   j = 0
   while i < len(infer_lines):
+    print(i)
     pred_source = infer_lines[i]
     if pred_source.replace("SEQUENCE_END", "").strip() != source_lines[j].strip():
       print (pred_source)
       print (source_lines[j])
-      break
-    i += 2
+      return
+    i += 3
     j += 1
   if os.path.exists(ques_done_path) and overwrite == False:
     done_ques_path = ques_done_path + ".do"
