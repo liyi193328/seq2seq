@@ -30,7 +30,7 @@ def store_done_ques(ques_path, infer_path, ques_done_path, infer_done_path, over
     if pred_source.replace("SEQUENCE_END", "").strip() != source_lines[j].strip():
       print (pred_source)
       print (source_lines[j])
-      return
+      break
     i += 3
     j += 1
   print("already pred {} sents".format(j))
