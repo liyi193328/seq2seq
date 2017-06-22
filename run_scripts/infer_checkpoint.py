@@ -20,7 +20,7 @@ def cli():
 def store_done_ques(ques_path, infer_path, ques_done_path, infer_done_path, overwrite=False):
   source_lines = codecs.open(ques_path, "r", "utf-8").readlines()
   infer_lines = codecs.open(infer_path, "r", "utf-8").readlines()
-  assert  len(infer_lines) % 3 == 0, "{}:{}".format(infer_path, len(infer_lines))
+  print("pred lines: {}".format(len(infer_lines)))
   infer_ques_num = len(infer_lines) / 3
   assert  infer_ques_num <= len(source_lines), "total {} source ques, but get {} pred ques".format(len(source_lines), infer_ques_num)
   i = 0
