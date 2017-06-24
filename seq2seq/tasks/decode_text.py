@@ -144,8 +144,8 @@ class DecodeText(InferenceTask):
 
   def begin(self):
     self._predictions = graph_utils.get_dict_from_collection("predictions")
-    self.batch_cnt = 0
     self.write_cnt = 0
+    self.sample_cnt = 0
     self.infer_outs = []
     if self._save_pred_path is not None:
       self._pred_fout = codecs.open(self._save_pred_path, "w", "utf-8")
@@ -169,17 +169,17 @@ class DecodeText(InferenceTask):
     for infer_out in self.infer_outs:
       self._pred_fout.write(infer_out)
     self._pred_fout.close()
-    self.batch_cnt = 0
+    self.sample_cnt = 0
     self.infer_outs = []
-    tf.logging.info("finished batches: {}".format(self.write_cnt))
+    tf.logging.info("write times: {}".format(self.write_cnt))
     self.write_cnt += 1
 
   def after_run(self, _run_context, run_values):
 
-    self.batch_cnt += 1
-
     fetches_batch = run_values.results
     for fetches in unbatch_dict(fetches_batch):
+      self.sample_cnt += 1
+      tf.logging.info("done samples: {}".format(self.sample_cnt))
       # Convert to unicode
       fetches["predicted_tokens"] = np.char.decode(
           fetches["predicted_tokens"].astype("S"), "utf-8")
@@ -218,7 +218,7 @@ class DecodeText(InferenceTask):
       if self._save_pred_path is not None:
         infer_out = source_sent + "\n" + sent + "\n\n"
         self.infer_outs.append(infer_out)
-        if self.batch_cnt % int(1e4) == 0:
+        if self.sample_cnt % 1000 == 0:
           self.write_buffer_to_disk()
       else:
         print(source_sent + "\n" + sent + "\n\n")
