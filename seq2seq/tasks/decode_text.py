@@ -179,7 +179,7 @@ class DecodeText(InferenceTask):
     fetches_batch = run_values.results
     for fetches in unbatch_dict(fetches_batch):
       self.sample_cnt += 1
-      tf.logging.info("done samples: {}".format(self.sample_cnt))
+      # tf.logging.info("done samples: {}".format(self.sample_cnt))
       # Convert to unicode
       fetches["predicted_tokens"] = np.char.decode(
           fetches["predicted_tokens"].astype("S"), "utf-8")
