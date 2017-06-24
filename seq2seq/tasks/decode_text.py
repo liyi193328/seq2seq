@@ -152,14 +152,6 @@ class DecodeText(InferenceTask):
 
   def before_run(self, _run_context):
 
-    if (self.batch_cnt + 1) % int(1e3):
-      self._pred_fout = codecs.open(self._save_pred_path, "a", "utf-8")
-      for infer_out in self.infer_outs:
-        self._pred_fout.write(infer_out)
-      tf.logging.info("finished batches: {}".format(self.batch_cnt))
-      self._pred_fout.close()
-
-    self.batch_cnt += 1
     fetches = {}
     fetches["predicted_tokens"] = self._predictions["predicted_tokens"]
     fetches["features.source_len"] = self._predictions["features.source_len"]
@@ -183,6 +175,9 @@ class DecodeText(InferenceTask):
     self.write_cnt += 1
 
   def after_run(self, _run_context, run_values):
+
+    self.batch_cnt += 1
+
     fetches_batch = run_values.results
     for fetches in unbatch_dict(fetches_batch):
       # Convert to unicode
@@ -223,7 +218,7 @@ class DecodeText(InferenceTask):
       if self._save_pred_path is not None:
         infer_out = source_sent + "\n" + sent + "\n\n"
         self.infer_outs.append(infer_out)
-        if self.batch_cnt % int(1e3) == 0:
+        if self.batch_cnt % int(1e4) == 0:
           self.write_buffer_to_disk()
       else:
         print(source_sent + "\n" + sent + "\n\n")
