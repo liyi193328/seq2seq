@@ -144,10 +144,15 @@ class DecodeText(InferenceTask):
 
   def begin(self):
     self._predictions = graph_utils.get_dict_from_collection("predictions")
+    self.batch_cnt = 0
     if self._save_pred_path is not None:
       self._pred_fout = codecs.open(self._save_pred_path, "w", "utf-8")
 
   def before_run(self, _run_context):
+    if (self.batch_cnt + 1) % int(1e3):
+      self._pred_fout = codecs.open(self._save_pred_path, "a", "utf-8")
+      tf.logging.info("finished batches: {}".format(self.batch_cnt))
+    self.batch_cnt += 1
     fetches = {}
     fetches["predicted_tokens"] = self._predictions["predicted_tokens"]
     fetches["features.source_len"] = self._predictions["features.source_len"]
