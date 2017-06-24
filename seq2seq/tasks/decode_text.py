@@ -170,14 +170,15 @@ class DecodeText(InferenceTask):
 
     return tf.train.SessionRunArgs(fetches)
 
-  def write_buffer_to_disk(self, infer_outs):
+  def write_buffer_to_disk(self):
     if self._pred_fout.closed == False:
       self._pred_fout.close()
     self._pred_fout = codecs.open(self._save_pred_path, "a", "utf-8")
-    for infer_out in infer_outs:
+    for infer_out in self.infer_outs:
       self._pred_fout.write(infer_out)
     self._pred_fout.close()
     self.batch_cnt = 0
+    self.infer_outs = []
     tf.logging.info("finished batches: {}".format(self.write_cnt))
     self.write_cnt += 1
 
@@ -223,13 +224,13 @@ class DecodeText(InferenceTask):
         infer_out = source_sent + "\n" + sent + "\n\n"
         self.infer_outs.append(infer_out)
         if self.batch_cnt % int(1e3) == 0:
-          self.write_buffer_to_disk(self.infer_outs)
+          self.write_buffer_to_disk()
       else:
         print(source_sent + "\n" + sent + "\n\n")
 
     def end(self, session):
 
-      self.write_buffer_to_disk(self.infer_outs)
+      self.write_buffer_to_disk()
 
       if self._save_pred_path is not None:
         if self._pred_fout.closed == False:
