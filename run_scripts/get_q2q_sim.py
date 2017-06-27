@@ -163,10 +163,12 @@ if __name__ == "__main__":
   parser = argparse.ArgumentParser()
   parser.add_argument("file_path", type=str, help="model predict path")
   parser.add_argument("save_path", type=str, help="save result path")
+  parser.add_argument("--in_one_line", type=str, default="False", help=r"question pair in one line, or in two lines(the end split")
   parser.add_argument("--pnums", default=max(1, MP.cpu_count() - 5), type=int, help="parallels[cpu.count - 5]")
   args = parser.parse_args()
+  args.in_one_line = args.in_one_line in ["Yes", "y", "Y", "yes", "true", "True"]
   if args.pnums <= 1:
-    get_q2q_file_sinle_pro(args.file_path, args.save_path)
+    get_q2q_file_sinle_pro(args.file_path, args.save_path, in_one_line=args.in_one_line)
   else:
-    get_q2q_file(args.file_path, args.save_path,parallels=args.pnums)
+    get_q2q_file(args.file_path, args.save_path,parallels=args.pnums, in_one_line=args.in_one_line)
 

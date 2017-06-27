@@ -23,6 +23,22 @@ def cli():
   pass
 
 @click.command()
+@click.command("pred_path")
+@click.command("save_path")
+def filter_same_pairs(pred_path, save_path):
+  source_list, pred_list = utils.read_pred_result(pred_path)
+  fout = codecs.open(save_path, "w", "utf-8")
+  same_cnt = 0
+  for source, pred in zip(source_list, pred_list):
+    if source.strip() == pred.strip():
+      same_cnt += 1
+      continue
+    wst = "\n".join([source, pred]) + "\n\n"
+    fout.write(wst)
+  fout.close()
+  print("same:all = {}:{}".format(same_cnt, len(source_list)))
+
+@click.command()
 @click.argument("path")
 @click.argument("save_path")
 @click.option("--least_token_num", type=int, default=3, help="this sentence least token num")
@@ -122,6 +138,7 @@ def filter_low_sim_from_json(json_path, save_path=None, sim_threshold=0.95):
 cli.add_command(filter_questions)
 cli.add_command(filter_low_sim_from_json)
 cli.add_command(merge_and_unique_pred_result)
+cli.add_command(filter_same_pairs)
 
 if __name__ == "__main__":
   # filter_low_sim_from_json()
