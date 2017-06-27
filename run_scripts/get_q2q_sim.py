@@ -42,8 +42,8 @@ def split_join(s):
 @click.command()
 @click.argument("file_path", type=str)
 @click.argument("save_path", type=str)
-@click.argument("--in_one_line", is_flag=True, help=r"question pair in one line, or in two lines(the end split")
-@click.argument("--parallels", default=max(1, MP.cpu_count() - 5), type=int, help="parallels[cpu.count - 5]")
+@click.option("--in_one_line", is_flag=True, help=r"question pair in one line, or in two lines(the end split")
+@click.option("--parallels", default=max(1, MP.cpu_count() - 5), type=int, help="parallels[cpu.count - 5]")
 def get_q2q_file_sinle_pro(file_path, save_path, parallels=1, time_dealy=2,
                            delimiter="\t",in_one_line=False):
   # file_path is tokenized file
@@ -171,8 +171,8 @@ def get_q2q_file(file_path, save_path, parallels=MP.cpu_count() - 2, time_dealy=
 @click.command()
 @click.argument("source_dir", type=str)
 @click.argument("save_prefix", type=str)
-@click.argument("--in_one_line", is_flag=True, help=r"question pair in one line, or in two lines(the end split")
-@click.argument("--parallels", default=max(1, MP.cpu_count() - 5), type=int, help="parallels[cpu.count - 5]")
+@click.option("--in_one_line", is_flag=True, help=r"question pair in one line, or in two lines(the end split")
+@click.option("--parallels", default=max(1, MP.cpu_count() - 5), type=int, help="parallels[cpu.count - 5]")
 def get_q2q_sim_dir(source_dir, save_prefix, parallels=MP.cpu_count() - 2, time_dealy=1,
                  in_one_line=False, delimiter="\t"):
     score_dir = os.path.dirname(save_prefix)
