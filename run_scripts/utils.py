@@ -32,6 +32,7 @@ def write_list_to_file(d, file_path, verb=True):
     xstr = x
     if type(x) == list:
       xstr = [str(v) for v in x]
+      xstr = "\t".join(xstr)
     f.write(xstr.strip() + "\n")
   f.close()
   if verb:

@@ -30,7 +30,7 @@ def get_q2q_sim(q0, q1):
   # print(cmd)
   pro = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
   outputs, errs = pro.communicate()
-  return outputs
+  return outputs, cmd
 
 def jsonWrite(d, file_path, indent=2):
   with codecs.open(file_path, "w", "utf-8") as f:
@@ -80,7 +80,7 @@ def get_q2q_file(file_path, save_path, parallels=MP.cpu_count() - 2, time_dealy=
 
   nums = len(pros)
   for i, pro in enumerate(pros):
-    outputs = pro.get().strip()
+    outputs, cmd = pro.get()
     try:
       rj = json.loads(outputs.strip())
       if "data" not in rj:
@@ -94,6 +94,7 @@ def get_q2q_file(file_path, save_path, parallels=MP.cpu_count() - 2, time_dealy=
     except Exception:
       results[i]["score"] = -1
       print(results[i])
+      print(cmd)
       traceback.print_exc()
     if i and i % 10000 == 0:
       print("finined {} sents and ratio {}".format(i, i/float(nums)))
