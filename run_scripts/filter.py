@@ -23,8 +23,8 @@ def cli():
   pass
 
 @click.command()
-@click.command("pred_path")
-@click.command("save_path")
+@click.argument("pred_path")
+@click.argument("save_path")
 def filter_same_pairs(pred_path, save_path):
   source_list, pred_list = utils.read_pred_result(pred_path)
   fout = codecs.open(save_path, "w", "utf-8")
@@ -86,12 +86,16 @@ def merge_and_unique_pred_result(pred_dirs, save_path, all_ques_path_or_dir, unk
   fout = codecs.open(save_path, "w", "utf-8")
   funk = None
   unk_pred_nums = 0
+  pred_same_with_source_cnt = 0
   if unk_path is not None:
     funk = codecs.open(unk_path, "w", "utf-8")
   with click.progressbar(all_pred_path,label="reading pred path") as bar:
     for pred_path in bar:
       source_list, pred_list = utils.read_pred_result(pred_path)
       for source, pred in zip(source_list, pred_list):
+        if source == pred:
+          pred_same_with_source_cnt += 1
+          continue
         if source not in done_ques:
           done_ques.add(source)
           done_cnt += 1
@@ -106,6 +110,7 @@ def merge_and_unique_pred_result(pred_dirs, save_path, all_ques_path_or_dir, unk
             fout.write(wst)
   if unk_path is not None:
     print("rewrite's pred contain unk: {}".format(unk_pred_nums))
+  print("rewrite same ques num: {}".format(pred_same_with_source_cnt))
   print("rewrite ques num: {}".format(done_cnt))
 
   res_ques = ques_set - done_ques
