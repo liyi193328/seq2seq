@@ -144,10 +144,14 @@ class DecodeText(InferenceTask):
 
   def begin(self):
     self._predictions = graph_utils.get_dict_from_collection("predictions")
+    self.write_cnt = 0
+    self.sample_cnt = 0
+    self.infer_outs = []
     if self._save_pred_path is not None:
       self._pred_fout = codecs.open(self._save_pred_path, "w", "utf-8")
 
   def before_run(self, _run_context):
+
     fetches = {}
     fetches["predicted_tokens"] = self._predictions["predicted_tokens"]
     fetches["features.source_len"] = self._predictions["features.source_len"]
@@ -158,9 +162,24 @@ class DecodeText(InferenceTask):
 
     return tf.train.SessionRunArgs(fetches)
 
+  def write_buffer_to_disk(self):
+    if self._pred_fout.closed == False:
+      self._pred_fout.close()
+    self._pred_fout = codecs.open(self._save_pred_path, "a", "utf-8")
+    for infer_out in self.infer_outs:
+      self._pred_fout.write(infer_out)
+    self._pred_fout.close()
+    self.sample_cnt = 0
+    self.infer_outs = []
+    tf.logging.info("write times: {}".format(self.write_cnt))
+    self.write_cnt += 1
+
   def after_run(self, _run_context, run_values):
+
     fetches_batch = run_values.results
     for fetches in unbatch_dict(fetches_batch):
+      self.sample_cnt += 1
+      # tf.logging.info("done samples: {}".format(self.sample_cnt))
       # Convert to unicode
       fetches["predicted_tokens"] = np.char.decode(
           fetches["predicted_tokens"].astype("S"), "utf-8")
@@ -197,11 +216,17 @@ class DecodeText(InferenceTask):
       source_sent = self.params["delimiter"].join(source_tokens)
 
       if self._save_pred_path is not None:
-        self._pred_fout.write(source_sent + "\n" + sent + "\n\n")
+        infer_out = source_sent + "\n" + sent + "\n\n"
+        self.infer_outs.append(infer_out)
+        if self.sample_cnt % 1000 == 0:
+          self.write_buffer_to_disk()
       else:
         print(source_sent + "\n" + sent + "\n\n")
 
-
     def end(self, session):
+
+      self.write_buffer_to_disk()
+
       if self._save_pred_path is not None:
-        self._pred_fout.close()
+        if self._pred_fout.closed == False:
+          self._pred_fout.close()
