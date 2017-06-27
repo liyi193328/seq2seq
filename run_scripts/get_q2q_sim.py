@@ -1,10 +1,13 @@
 #encoding=utf-8
 
 """
-get file text's similiary through q2q service
-get q2q similariy from service
-curl -X POST -d '{"query":"你知罪吗", "question":"你知道错了吗"}' http://10.191.15.89:40919/cgi-bin/ranker/q2qsimilarity
-warp this comand for whole file
+function:
+1. get file text's similiary through q2q service
+  get q2q similariy from service
+  curl -X POST -d '{"query":"你知罪吗", "question":"你知道错了吗"}' http://10.191.15.89:40919/cgi-bin/ranker/q2qsimilarity
+  warp this comand for whole file
+
+author: liyi
 """
 
 import os
@@ -19,7 +22,6 @@ import argparse
 import traceback
 import multiprocessing as MP
 import subprocess
-
 
 def get_q2q_sim(q0, q1):
   cmd = ''' curl -X POST -d '{{"query":"{}", "question":"{}" }}' http://10.191.15.89:40919/cgi-bin/ranker/q2qsimilarity '''.format(q0, q1)
