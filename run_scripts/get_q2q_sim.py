@@ -113,7 +113,7 @@ def get_q2q_file(file_path, save_path, parallels=MP.cpu_count() - 2, time_dealy=
 @click.argument("save_prefix", type=str)
 @click.option("--in_one_line", is_flag=True, help=r"question pair in one line, or in two lines(the end split")
 @click.option("--parallels", default=max(1, MP.cpu_count() - 5), type=int, help="parallels[cpu.count - 5]")
-@click.option("-tg", "--time_dealy", default=1, type=int, help="time delay in ")
+@click.option("-tg", "--time_delay", default=1, type=int, help="time delay in ")
 def get_q2q_sim_dir(source_dir, save_prefix, parallels=MP.cpu_count() - 2, time_dealy=1,
                  in_one_line=False, delimiter="\t"):
     score_dir = os.path.dirname(save_prefix)
