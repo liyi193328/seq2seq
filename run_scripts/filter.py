@@ -94,7 +94,7 @@ def merge_and_unique_pred_result(pred_dirs, save_path, all_ques_path_or_dir, unk
 
   res_ques = ques_set - done_ques
   print("remain ques num: {}".format(len(res_ques)))
-  if not res_ques_path:
+  if res_ques_path is not None:
     with codecs.open(res_ques_path, "w", "utf-8") as f:
       for res_que in res_ques:
         f.write(res_que + "\n")
