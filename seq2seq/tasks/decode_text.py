@@ -147,11 +147,14 @@ class DecodeText(InferenceTask):
     self.write_cnt = 0
     self.sample_cnt = 0
     self.infer_outs = []
+    self.run_cnt = 0
     if self._save_pred_path is not None:
       self._pred_fout = codecs.open(self._save_pred_path, "w", "utf-8")
 
   def before_run(self, _run_context):
 
+    if (self.run_cnt + 1) % int(1e4) == 0:
+      self._pred_fout = codecs.open(self._save_pred_path, "a", "utf-8")
     fetches = {}
     fetches["predicted_tokens"] = self._predictions["predicted_tokens"]
     fetches["features.source_len"] = self._predictions["features.source_len"]
