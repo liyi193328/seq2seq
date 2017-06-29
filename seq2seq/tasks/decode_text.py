@@ -226,10 +226,12 @@ class DecodeText(InferenceTask):
       else:
         print(source_sent + "\n" + sent + "\n\n")
 
-    def end(self, session):
+  def end(self, session):
 
-      self.write_buffer_to_disk()
+    self.write_buffer_to_disk()
 
-      if self._save_pred_path is not None:
-        if self._pred_fout.closed == False:
-          self._pred_fout.close()
+    tf.logging.info("decode text end session")
+
+    if self._save_pred_path is not None:
+      if self._pred_fout.closed == False:
+        self._pred_fout.close()
