@@ -221,7 +221,7 @@ class DecodeText(InferenceTask):
       if self._save_pred_path is not None:
         infer_out = source_sent + "\n" + sent + "\n\n"
         self.infer_outs.append(infer_out)
-        if self.sample_cnt % 100 == 0:
+        if self.sample_cnt % 1000 == 0:
           self.write_buffer_to_disk()
       else:
         print(source_sent + "\n" + sent + "\n\n")
