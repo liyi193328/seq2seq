@@ -122,6 +122,16 @@ def merge_and_unique_pred_result(pred_dirs, save_path, all_ques_path_or_dir, unk
     print("save res ques to {}".format(res_ques_path))
 
 @click.command()
+@click.argument("pred_path")
+@click.argument("save_path")
+def keep_only_question(pred_path, save_path):
+  source_list, pred_list = utils.read_pred_result(pred_path)
+  f = codecs.open(save_path, "w", "utf-8")
+  for source, pred in zip(source_list, pred_list):
+    f.write(pred.strip() + "\n")
+  f.close()
+
+@click.command()
 @click.argument("json_path", "json path from get_q2q_sim.py, every cell contain source, predict, score")
 @click.option("--save_path", default=None, help="store filter result path, every line is tab.join(s,p,score), None print on screen")
 @click.option("--sim_threshold", default=0.95,help="lowest sim threshold[0.95]")
