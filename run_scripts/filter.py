@@ -154,6 +154,7 @@ cli.add_command(filter_questions)
 cli.add_command(filter_low_sim_from_json)
 cli.add_command(merge_and_unique_pred_result)
 cli.add_command(filter_same_pairs)
+cli.add_command(keep_only_question)
 
 if __name__ == "__main__":
   # filter_low_sim_from_json()
