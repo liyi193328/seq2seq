@@ -128,7 +128,7 @@ def keep_only_question(pred_path, save_path):
   source_list, pred_list = utils.read_pred_result(pred_path)
   f = codecs.open(save_path, "w", "utf-8")
   for source, pred in zip(source_list, pred_list):
-    f.write(pred.strip() + "\n")
+    f.write(source.strip() + "\n")
   f.close()
 
 @click.command()
