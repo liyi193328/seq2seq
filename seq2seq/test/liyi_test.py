@@ -49,23 +49,39 @@ def t(filename, default_value=None):
     vocab = list(vocab)
   return vocab
 
-class f(object):
 
-  def __init__(self,x,y):
-    self._x = x
-    self._y = y
+from seq2seq.graph_utils import templatemethod
 
-  def _build(self, c,d):
-    print("in build")
-    print(c, d)
+@templatemethod("trial")
+def trial(x):
+    w = tf.get_variable('w', [])
+    return tf.reduce_sum(x) * w
 
+def my_trail(x, share_variable_name):
+  var1 = tf.get_variable(share_variable_name, shape=[])
+  return tf.reduce_sum(x) * var1
 
+template_my = tf.make_template("template_my", my_trail, share_variable_name="my_v")
 
+def test_trial():
+  y = tf.placeholder(tf.float32, [None])
+  z = tf.placeholder(tf.float32, [None])
+  a_y = trial(y)
+  a_z = trial_1(z)
+
+  # a_y = template_my(y)
+  # a_z = template_my(z)
+
+  s = tf.InteractiveSession()
+  tf.global_variables_initializer().run()
+  print(tf.global_variables())
+  # print(v_0.eval())
+  print(a_y.eval(feed_dict={y: [1.1, 1.9]}))
+  # print(v_1.eval())
+  print(a_z.eval(feed_dict={z: [1.9, 1.1]}))
 
 if __name__ == "__main__":
 
-  a = f(1,2)
-  a._build(3,4)
-
+  test_trial()
 
 
