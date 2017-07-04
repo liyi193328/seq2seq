@@ -157,16 +157,27 @@ def generate_vocb(script_path, tokenized_file, vocb_path, max_vocab_size=50000):
     print(r)
     filter_illegal(vocb_path)
 
-def generate_parallel_vocbs(generate_vocb_script_path, data_dir,max_vocab_size=50000):
+
+def generate_parallel_vocbs(generate_vocb_script_path, data_dir,max_vocab_size=50000, share_vocab=True):
     train_source_path = join(data_dir, "train/sources.txt")
     train_source_vocab_path = join(data_dir, "vocab/vocab.sources.txt")
     train_target_path = join(data_dir, "train/targets.txt")
     train_target_vocab_path = join(data_dir, "vocab/vocab.sources.txt")
     merge_path = join(data_dir, "train/merge_train_target.txt")
-    shared_vocab_path = join(data_dir, "vocab/shared.vocab.txt")
-    merge_files([train_source_path, train_target_path], merge_path)
-    generate_vocb(generate_vocb_script_path, merge_path, shared_vocab_path, max_vocab_size=max_vocab_size)
-    os.remove(merge_path)
+    if type(max_vocab_size) == list:
+      max_vocab_size_list = max_vocab_size
+    else:
+      max_vocab_size_list = max_vocab_size.split(",")
+    if share_vocab is True:
+      shared_vocab_path = join(data_dir, "vocab/shared.vocab.txt")
+      merge_files([train_source_path, train_target_path], merge_path)
+      generate_vocb(generate_vocb_script_path, merge_path, shared_vocab_path, max_vocab_size=max_vocab_size_list[0])
+      os.remove(merge_path)
+    else:
+      source, target = [train_source_path, train_target_vocab_path], [train_target_path, train_target_vocab_path]
+      generate_vocb(generate_vocb_script_path, train_source_path, train_target_vocab_path, max_vocab_size=max_vocab_size_list[0])
+      generate_vocb(generate_vocb_script_path, train_target_path, train_target_vocab_path, max_vocab_size=max_vocab_size_list[1])
+
 
 def get_source_target(qs, keys, xs, ys,keep_one=False):
   sources = []
@@ -206,14 +217,26 @@ def cli():
 @click.command()
 @click.argument("source_data_path")
 @click.argument("save_data_dir")
+@click.argument("source_index")
+@click.argument("target_index")
 @click.option("--sample_size", default=None, help="sample size, None mean all")
 @click.option("--ratios", default="0.95,1.0,1.0", help="train,dev,test split ratio")
 @click.option("--add_dual/--no-add_dual", default=False, help="whether add dual pair from target to source")
 @click.option("--seq2seq_path", default=None, help="seq2seq dir")
-@click.option("--max_vocab_size", default=50000, help="max vocab size(from high to low freq)[50000]")
-def make_sep_datasets(source_data_path, save_data_dir, ratios="0.95,1.0,1.0",
+@click.option("--max_vocab_size", default=50000, help="max vocab size, use , to split source vocab and target(from high to low freq)[50000]")
+@click.option("--unique_source", is_flag=True, help="when unique_queue is True, need extra set to unique source end for query rewrite task")
+def make_sep_datasets(source_data_path, save_data_dir, source_index, target_index,
+                      ratios="0.95,1.0,1.0", share_vocab=True, unique_source=False,
                       keep=None, sample_size=None,max_vocab_size=50000,
-                      add_dual=False, seq2seq_path=None):
+                      add_dual=False, seq2seq_path=None
+                      ):
+
+  max_vocab_size = max_vocab_size.split(",")
+  if share_vocab is True:
+    if len(max_vocab_size) > 1:
+      raise ValueError("set share vocab, max_vocab_size must be like: 3,5")
+  else:
+    assert len(max_vocab_size) == 2, max_vocab_size
 
   from os.path import join
   global  global_gen_vocb_script_path
@@ -225,42 +248,52 @@ def make_sep_datasets(source_data_path, save_data_dir, ratios="0.95,1.0,1.0",
   if len(ratio_list) != 3:
       raise ValueError("error in {}, must sure 3 elements like 0.95,1.0,1.0".format(ratios))
 
-  lines = codecs.open(source_data_path,"r","utf-8").readlines()
+  f = codecs.open(source_data_path,"r","utf-8")
   qs = {}
   xs = []
   ys = []
-
-  for i, line in enumerate(lines):
+  counter = 0
+  while True:
+    line = f.readline()
+    if line == "":
+      break
     t = line.strip().split("\t")
-    x = t[0].strip()
-    y = t[1].strip()
+    x = t[source_index].strip()
+    y = t[target_index].strip()
     xs.append(x)
     ys.append(y)
-    if x not in qs:
-     qs[x] = []
-    if keep is None:
-      qs[x].append(i)
-    else:
-      if len(qs[x]) > keep:
-        continue
+    if unique_source is True:
+      if x not in qs:
+       qs[x] = []
+      if keep is None or len(qs[x]) < keep:
+        qs[x].append(counter)
+    counter += 1
+  if unique_source is True:
+    source_nums = len(qs)
+    source_list = list(qs.keys())
+  else:
+    source_nums = len(xs)
+    source_list = xs
 
-  q_num = len(qs)
-  ques_list = list(qs.keys())
-  train_index = int(q_num * ratio_list[0])
-  eval_index = int(q_num * ratio_list[1])
-  test_index = int(q_num * ratio_list[2])
+  train_index = int(source_nums * ratio_list[0])
+  eval_index = int(source_nums * ratio_list[1])
+  test_index = int(source_nums * ratio_list[2])
 
   train_dir = join(save_data_dir, "train")
   eval_dir = join(save_data_dir, "dev")
   test_dir = join(save_data_dir, "test")
 
-  train_keys, eval_keys, test_keys = ques_list[0:train_index], \
-                                     ques_list[train_index:eval_index],\
-                                     ques_list[eval_index:test_index]
-
-  train_s, train_t = get_source_target(qs, train_keys, xs, ys)
-  eval_s, eval_t = get_source_target(qs, eval_keys, xs, ys, keep_one=True)
-  test_s, test_t = get_source_target(qs, test_keys, xs, ys, keep_one=True)
+  if unique_source:
+    train_keys, eval_keys, test_keys = source_list[0:train_index], \
+                                       source_list[train_index:eval_index], \
+                                       source_list[eval_index:test_index]
+    train_s, train_t = get_source_target(qs, train_keys, xs, ys)
+    eval_s, eval_t = get_source_target(qs, eval_keys, xs, ys, keep_one=True)
+    test_s, test_t = get_source_target(qs, test_keys, xs, ys, keep_one=True)
+  else:
+    train_s, train_t = xs[0:train_index], ys[0:train_index]
+    eval_s, eval_t = xs[train_index:eval_index], ys[train_index:eval_index]
+    test_s, test_t = xs[eval_index:test_index], ys[eval_index:test_index]
 
   if add_dual:
     train_s.extend(train_t)
@@ -279,8 +312,9 @@ def make_sep_datasets(source_data_path, save_data_dir, ratios="0.95,1.0,1.0",
   elif global_gen_vocb_script_path is None:
     raise ValueError("No seq2seq found")
 
-  generate_parallel_vocbs(global_gen_vocb_script_path, save_data_dir, max_vocab_size=max_vocab_size)
-  get_unique_ques(source_data_path, join(save_data_dir, "all_ques.txt"), add_dual=True)
+  generate_parallel_vocbs(global_gen_vocb_script_path, save_data_dir, max_vocab_size=max_vocab_size, share_vocab=share_vocab)
+  if unique_source:
+    get_unique_ques(source_data_path, join(save_data_dir, "all_ques.txt"), add_dual=True)
 
 @click.command()
 @click.argument("source_data_path")
