@@ -54,8 +54,10 @@ from seq2seq.graph_utils import templatemethod
 
 @templatemethod("trial")
 def trial(x):
-    w = tf.get_variable('w', [])
-    return tf.reduce_sum(x) * w
+    def f(x):
+      w = tf.get_variable('w', [])
+      tf.reduce_sum(x) * w
+    return f
 
 def my_trail(x, share_variable_name):
   var1 = tf.get_variable(share_variable_name, shape=[])
@@ -66,8 +68,9 @@ template_my = tf.make_template("template_my", my_trail, share_variable_name="my_
 def test_trial():
   y = tf.placeholder(tf.float32, [None])
   z = tf.placeholder(tf.float32, [None])
-  a_y = trial(y)
-  a_z = trial_1(z)
+  with tf.variable_scope("my"):
+    f = trial(y)
+    a_z = trial(z)
 
   # a_y = template_my(y)
   # a_z = template_my(z)

@@ -123,4 +123,3 @@ class BasicSeq2Seq(Seq2SeqModel):
     else:
       return self._decode_train(decoder, bridge, encoder_output, features,
                                 labels)
-\
