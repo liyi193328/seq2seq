@@ -25,6 +25,25 @@ from seq2seq import graph_utils
 def should_continue(t, timestaps, *args):
   return t < timestaps
 
+def source_seq_iteration(t, max_t, seq_source_ids, cur_source_ids, cur_oov_list, source_seq_words,
+                        source_unk_id, oringin_vocab_size):
+  word_id = tf.gather(seq_source_ids, t)
+  if tf.not_equal(word_id, source_unk_id):
+    cur_source_ids.write(t, word_id)
+  else:
+    word = tf.gather(source_seq_words, t)
+    word_equal_index = tf.where(tf.equal(cur_oov_list, word))
+    tf.assert_less_equal(len(word_equal_index), 1)
+    cur_oov_num = cur_source_ids.size()
+    if len(word_equal_index) == 0:
+      cur_oov_list.write(cur_oov_num, word)
+      cur_source_ids.write(t,
+                           cur_oov_num + oringin_vocab_size)  # article's oov id is range( max_vocab_size, max_vocab_size + len(cur_oov_list) )
+    else:
+      cur_source_ids.write(t, word_equal_index[0][0] + oringin_vocab_size)
+
+  return t + 1, max_t, cur_source_ids, cur_oov_list
+
 class CopyGenSeq2Seq(AttentionSeq2Seq):
 
   def __init__(self,  params, mode, pointer_gen = True, coverage = False, name="copy_gen_seq2seq"):
@@ -193,42 +212,23 @@ class CopyGenSeq2Seq(AttentionSeq2Seq):
     new_source_ids = []
     source_oov_words_list = []
 
-    def iteration(t, max_t, seq_source_ids, cur_oov_list, source_seq_words, counter):
-      word_id = tf.gather(seq_source_ids, t)
-      if tf.not_equal(word_id, source_unk_id):
-        cur_source_ids.append(word_id)
-      else:
-        word = source_words[i, j]
-        word_equal_index = tf.where(tf.equal(cur_oov_list, word))
-        tf.assert_less_equal(len(word_equal_index), 1)
-        if len(word_equal_index) == 0:
-          cur_oov_list.append(word)
-          cur_source_ids.append(
-            counter + oringin_vocab_size)  # article's oov id is range( max_vocab_size, max_vocab_size + len(cur_oov_list) )
-          counter += 1
-        else:
-          cur_source_ids.append(word_equal_index[0][0] + oringin_vocab_size)
-    for i, one_seq_source_ids in enumerate(unstack_source_ids):#loop batch
-      cur_source_ids = []
-      cur_oov_list = []
+
+    for i, seq_source_ids in enumerate(unstack_source_ids):#loop batch
       counter = 0
-      word_id_list = tf.unstack(one_seq_source_ids)
-      for j, word_id in enumerate(word_id_list):
-        if tf.not_equal(word_id, source_unk_id):
-          cur_source_ids.append(word_id)
-        else:
-          word = source_words[i,j]
-          word_equal_index = tf.where( tf.equal(cur_oov_list, word) )
-          tf.assert_less_equal(len(word_equal_index), 1)
-          if len(word_equal_index) == 0:
-            cur_oov_list.append(word)
-            cur_source_ids.append(counter + oringin_vocab_size) # article's oov id is range( max_vocab_size, max_vocab_size + len(cur_oov_list) )
-            counter += 1
-          else:
-            cur_source_ids.append(word_equal_index[0][0] + oringin_vocab_size)
-      cur_source_ids = tf.convert_to_tensor(cur_source_ids, dtype=tf.int32)
-      new_source_ids.append(cur_source_ids)
-      source_oov_words_list.append(cur_oov_list)
+      max_t = tf.shape(seq_source_ids)[0]
+      source_seq_words = source_words[i,:]
+      initial_new_source_ids = tf.TensorArray(dtype=tf.int32, size=max_t)
+      initial_cur_oov_words = tf.TensorArray(dtype=tf.string, dynamic_size=True)
+      initial_cur_oov_ids = tf.TensorArray(dtype=tf.int32, size=max_t)
+      initial_t = tf.Variable(0, dtype=tf.int32)
+      t, max_time_stamps, new_seq_source_ids, cur_oov_words = \
+        tf.while_loop( should_continue,  source_seq_iteration, [initial_t, max_t, seq_source_ids,
+                                                               initial_new_source_ids, initial_cur_oov_words,
+                                                               source_seq_words, source_unk_id, oringin_vocab_size])
+      new_seq_source_ids = new_seq_source_ids.pack()
+      cur_oov_words = cur_oov_words.pack()
+      new_source_ids.append(new_seq_source_ids)
+      source_oov_words_list.append(cur_oov_words)
 
     new_source_ids_tensor = tf.convert_to_tensor(new_source_ids, dtype=tf.int32)
 
