@@ -164,8 +164,10 @@ def generate_parallel_vocbs(source_paths, data_dir, target_paths = None, max_voc
     train_target_vocab_path = join(data_dir, "vocab/vocab.sources.txt")
     if type(max_vocab_size) == list:
       max_vocab_size_list = max_vocab_size
-    else:
+    elif type(max_vocab_size) == six.text_type:
       max_vocab_size_list = max_vocab_size.split(",")
+    else:
+      max_vocab_size_list = [max_vocab_size]
     max_vocab_size_list = list(map(int, max_vocab_size_list))
     if share_vocab is True:
       shared_vocab_path = join(data_dir, "vocab/shared.vocab.txt")
