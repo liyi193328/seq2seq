@@ -43,15 +43,16 @@ def test_trial():
   a_y = trial(y)
   a_z = trial(z)
 
-  # a_y = template_my(y)
-  # a_z = template_my(z)
+  a_y_t = template_my(y)
+  a_z_t = template_my(z)
 
   s = tf.InteractiveSession()
   tf.global_variables_initializer().run()
   print(tf.global_variables())
-  # print(v_0.eval())
+  print(a_y_t.eval(feed_dict={y: [1.1, 1.9]}
+                   ))
   print(a_y.eval(feed_dict={y: [1.1, 1.9]}))
-  # print(v_1.eval())
+  print(a_z_t.eval(feed_dict={y: [1.1, 1.9]}))
   print(a_z.eval(feed_dict={z: [1.9, 1.1]}))
 
 def get_vocab_list(vocab_path):
@@ -143,7 +144,9 @@ if __name__ == "__main__":
   # t(vocab_path)
   dir = "/home/bigdata/active_project/run_tasks/text_sum/debug"
   from os.path import join
-  test_copy_gen_model(source_path=join(dir,"source.txt"), target_path=join(dir, "target.txt"),
-                      vocab_path=join(dir,"vocab.txt"))
+  # test_copy_gen_model(source_path=join(dir,"source.txt"), target_path=join(dir, "target.txt"),
+  #                     vocab_path=join(dir,"vocab.txt"))
+
+  test_trial()
 
 
