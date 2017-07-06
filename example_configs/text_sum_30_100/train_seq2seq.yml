@@ -14,14 +14,14 @@ input_pipeline_train:
   class: ParallelTextInputPipeline
   params:
     source_files:
-      - /mnt/yardcephfs/mmyard/g_wxg_td_prc/turingli/sum_abs_30_100_baseline/data/train/sources_*.txt
+      - "/mnt/yardcephfs/mmyard/g_wxg_td_prc/turingli/sum_abs_30_100_baseline/data/train/sources_*.txt"
     target_files:
-      - /mnt/yardcephfs/mmyard/g_wxg_td_prc/turingli/sum_abs_30_100_baseline/data/train/targets_*.txt
+      - "/mnt/yardcephfs/mmyard/g_wxg_td_prc/turingli/sum_abs_30_100_baseline/data/train/targets_*.txt"
 
 input_pipeline_dev:
   class: ParallelTextInputPipeline
   params:
     source_files:
-      - /mnt/yardcephfs/mmyard/g_wxg_td_prc/turingli/sum_abs_30_100_baseline/data/dev/sources_*.txt
+      - "/mnt/yardcephfs/mmyard/g_wxg_td_prc/turingli/sum_abs_30_100_baseline/data/dev/sources_*.txt"
     target_files:
-      - /mnt/yardcephfs/mmyard/g_wxg_td_prc/turingli/sum_abs_30_100_baseline/data/dev/targets_*.txt
+      - "/mnt/yardcephfs/mmyard/g_wxg_td_prc/turingli/sum_abs_30_100_baseline/data/dev/targets_*.txt"
