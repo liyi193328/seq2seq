@@ -27,7 +27,7 @@ SpecialVocab = collections.namedtuple("SpecialVocab",
 
 
 class VocabInfo(
-    collections.namedtuple("VocbabInfo",
+    collections.namedtuple("VocabInfo",
                            ["path", "vocab_size", "special_vocab"])):
   """Convenience structure for vocabulary information.
   """
@@ -57,7 +57,7 @@ def get_vocab_info(vocab_path):
 def get_special_vocab(vocabulary_size):
   """Returns the `SpecialVocab` instance for a given vocabulary size.
   """
-  return SpecialVocab(*range(vocabulary_size, vocabulary_size + 3))
+  return SpecialVocab(*range(vocabulary_size, vocabulary_size + len(SpecialVocab._fields)))
 
 
 def create_vocabulary_lookup_table(filename, default_value=None):

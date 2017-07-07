@@ -161,14 +161,9 @@ def main(_argv):
       session_creator=session_creator,
       hooks=hooks) as sess:
 
-    run_cnt = 0
     # Run until the inputs are exhausted
     while not sess.should_stop():
-      print("sess begin run, sess.should_stop: {}...".format(sess.should_stop()))
       sess.run([])
-      run_cnt += 1
-      print(run_cnt)
-  print("stop sess: {}".format(run_cnt))
 
 if __name__ == "__main__":
   tf.logging.set_verbosity(tf.logging.INFO)

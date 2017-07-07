@@ -33,6 +33,7 @@ def templatemethod(name_):
     """Inner decorator function"""
 
     def func_wrapper(*args, **kwargs):
+
       """Inner wrapper function"""
       templated_func = tf.make_template(name_, func)
       return templated_func(*args, **kwargs)

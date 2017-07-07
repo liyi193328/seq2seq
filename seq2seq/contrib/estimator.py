@@ -944,8 +944,13 @@ class BaseEstimator(
               every_n_iter=100)
       ])
       all_hooks.extend(hooks)
-
-      scaffold = model_fn_ops.training_scaffold or monitored_session.Scaffold()
+      model_fn_scaffold = None
+      try:
+        model_fn_scaffold = model_fn_ops.scaffold
+      except AttributeError:
+        model_fn_scaffold = model_fn_ops.training_scaffold
+      # scaffold = model_fn_ops.scaffold or monitored_session.Scaffold()
+      scaffold = model_fn_scaffold or monitored_session.Scaffold()
       if not (scaffold.saver or ops.get_collection(ops.GraphKeys.SAVERS)):
         ops.add_to_collection(
             ops.GraphKeys.SAVERS,
