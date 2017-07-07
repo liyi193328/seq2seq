@@ -100,15 +100,14 @@ python -m bin.train \
   --allow_soft_placement=True \
   --gpu_allow_growth=True \
   --cloud=True \
-  --schedule="default" \
+  --schedule="continuous_eval" \
   --batch_size=$BATCH_SIZE \
   --train_steps=$TRAIN_STEPS \
   --eval_every_n_steps=${EVAL_EVERY_N_STEPS} \
   --output_dir=$MODEL_DIR \
   --clear_output_dir=${CLEAR_OUTPUT_DIR} \
   --save_checkpoints_secs=$SAVE_CHECK_SECS \
-  --keep_checkpoint_max=$KEEP_CHECK_MAX \
-  --set_eval_node=1
+  --keep_checkpoint_max=$KEEP_CHECK_MAX
 
 #  --model_params="
 #      vocab_source: $VOCAB_SOURCE
