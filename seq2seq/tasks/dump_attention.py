@@ -56,6 +56,10 @@ def _create_figure(predictions_dict):
 
   # Plot
   fig = plt.figure(figsize=(8, 8))
+  if "attention_scores" in predictions_dict:
+    attention_scores = predictions_dict["attention_scores"]
+  else:
+    attention_scores = predictions_dict["beam_search_output.original_outputs.attention_scores"][:,0,:]
   plt.imshow(
       X=predictions_dict["attention_scores"][:prediction_len, :source_len],
       interpolation="nearest",
@@ -106,9 +110,12 @@ class DumpAttention(InferenceTask):
     fetches = {}
     fetches["predicted_tokens"] = self._predictions["predicted_tokens"]
     fetches["features.source_len"] = self._predictions["features.source_len"]
-    fetches["features.source_tokens"] = self._predictions[
-        "features.source_tokens"]
-    fetches["attention_scores"] = self._predictions["attention_scores"]
+    fetches["features.source_tokens"] = self._predictions["features.source_tokens"]
+    if "attention_scores" in self._predictions:
+      fetches["attention_scores"] = self._predictions["attention_scores"]
+    elif "beam_search_output.original_outputs.attention_scores" in self._predictions:
+      fetches["beam_search_output.original_outputs.attention_scores"] = self._predictions["beam_search_output.original_outputs.attention_scores"]
+
     return tf.train.SessionRunArgs(fetches)
 
   def after_run(self, _run_context, run_values):

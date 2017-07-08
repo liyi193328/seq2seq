@@ -55,6 +55,7 @@ class DumpBeams(InferenceTask):
 
   def before_run(self, _run_context):
     fetches = {}
+    fetches["predicted_tokens"] = self._predictions["predicted_tokens"]
     fetches["beam_search_output.predicted_ids"] = self._predictions[
         "beam_search_output.predicted_ids"]
     fetches["beam_search_output.beam_parent_ids"] = self._predictions[

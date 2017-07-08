@@ -14,6 +14,7 @@ model_params:
       dropout_input_keep_prob: 0.8
       dropout_output_keep_prob: 1.0
       num_layers: 2
+      residual_connections: True
   decoder.class: seq2seq.decoders.AttentionDecoder
   decoder.params:
     rnn_cell:
