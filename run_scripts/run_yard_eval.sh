@@ -99,8 +99,8 @@ python -m bin.train \
   $4 \
   --allow_soft_placement=True \
   --gpu_allow_growth=True \
-  --cloud=False \
-  --schedule="default" \
+  --cloud=True \
+  --schedule="continuous_eval" \
   --batch_size=$BATCH_SIZE \
   --train_steps=$TRAIN_STEPS \
   --eval_every_n_steps=${EVAL_EVERY_N_STEPS} \
