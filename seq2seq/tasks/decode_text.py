@@ -235,7 +235,7 @@ class DecodeText(InferenceTask):
         pred_sent = pred_sent.strip()
         beam_search_sents.append(pred_sent)
 
-      pred_sents_str = "\n".join(pred_sent)
+      pred_sents_str = "\n".join(beam_search_sents)
       if self._save_pred_path is not None:
         infer_out = source_sent + "\n" + pred_sents_str + "\n\n"
         self.infer_outs.append(infer_out)
@@ -247,9 +247,7 @@ class DecodeText(InferenceTask):
   def end(self, session):
 
     self.write_buffer_to_disk()
-
     tf.logging.info("decode text end session")
-
     if self._save_pred_path is not None:
       if self._pred_fout.closed == False:
         self._pred_fout.close()
