@@ -39,6 +39,11 @@ class Seq2SeqModel(ModelBase):
   def __init__(self, params, mode, name):
     super(Seq2SeqModel, self).__init__(params, mode, name)
 
+    self._source_embedding = None
+    self._source_emb_scope = None
+    self._target_embedding = None
+    self._target_emb_scope = None
+
     self.source_vocab_info = None
     if "vocab_source" in self.params and self.params["vocab_source"]:
       self.source_vocab_info = vocab.get_vocab_info(self.params["vocab_source"])
@@ -122,6 +127,41 @@ class Seq2SeqModel(ModelBase):
     features.
     """
     return tf.shape(features["source_ids"])[0]
+
+  # @property
+  # @templatemethod("source_embedding")
+  # def source_embedding(self):
+  #   """Returns the embedding used for the source sequence.
+  #   """
+  #   if self._source_embedding is not None:
+  #     return self._source_embedding
+  #   self._source_emb_scope = tf.get_variable_scope()
+  #   self._source_embedding = tf.get_variable(
+  #       name="W",
+  #       shape=[self.source_vocab_info.total_size, self.params["embedding.dim"]],
+  #       initializer=tf.random_uniform_initializer(
+  #           -self.params["embedding.init_scale"],
+  #           self.params["embedding.init_scale"]))
+  #   return self._source_embedding
+  #
+  # @property
+  # @templatemethod("target_embedding")
+  # def target_embedding(self):
+  #   """Returns the embedding used for the target sequence.
+  #   """
+  #   if self.params["embedding.share"]:
+  #     if self._source_embedding is not None:
+  #       self._target_emb_scope = self._source_emb_scope
+  #       return self._source_embedding
+  #
+  #   self._target_emb_scope = tf.get_variable_scope()
+  #   self._target_embedding = tf.get_variable(
+  #       name="W",
+  #       shape=[self.target_vocab_info.total_size, self.params["embedding.dim"]],
+  #       initializer=tf.random_uniform_initializer(
+  #           -self.params["embedding.init_scale"],
+  #           self.params["embedding.init_scale"]))
+  #   return self._target_embedding
 
   @property
   @templatemethod("source_embedding")

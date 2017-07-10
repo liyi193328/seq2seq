@@ -48,6 +48,7 @@ class GraphModule(object):
     self.__call__.__func__.__doc__ = self._build.__doc__
 
   def _build(self, *args, **kwargs):
+
     """Subclasses should implement their logic here.
     """
     raise NotImplementedError
