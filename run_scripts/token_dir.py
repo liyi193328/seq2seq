@@ -52,7 +52,7 @@ def parallel_token_dir(file_path_or_dir, save_dir, suffix=".token", pnums = MP.c
 
 @click.command()
 @click.argument("file_path_or_dir")
-@click.argument("save_prefix")
+@click.argument("save_dir")
 @click.option("--delimiter", default="\t", type=str, help="split every line, and tokenize every element in them")
 @click.option("--pnums", type=int, help="num of process to tokenize file or dir", default=MP.cpu_count()-1)
 def cli(file_path_or_dir, save_dir, suffix=".token", pnums = MP.cpu_count() - 1, delimiter="\t"):
