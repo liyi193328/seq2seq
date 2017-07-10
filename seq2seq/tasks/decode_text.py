@@ -201,7 +201,7 @@ class DecodeText(InferenceTask):
       beam_search_sents = []
       beam_with = 1
 
-      if np.dim(predicted_tokens_list) > 1:
+      if predicted_tokens_list.ndim > 1:
         beam_with = np.shape(predicted_tokens_list)[1]
 
       # If we're using beam search we take the first beam
@@ -209,7 +209,7 @@ class DecodeText(InferenceTask):
         predicted_tokens = predicted_tokens_list[:, 0]
 
       for i in range(beam_with):
-        if np.dim(predicted_tokens_list) > 1:
+        if predicted_tokens_list.ndim > 1:
           predicted_tokens = predicted_tokens_list[:, i]
         else:
           predicted_tokens = predicted_tokens_list
