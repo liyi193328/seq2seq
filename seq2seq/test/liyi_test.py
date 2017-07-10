@@ -26,10 +26,17 @@ def t(file_path, default_value=None):
 
 from seq2seq.graph_utils import templatemethod
 
-@templatemethod("trial")
-def trial(x):
-    w = tf.get_variable('w', [])
-    return tf.reduce_sum(x) * w
+class test_property:
+
+  def __init__(self, x):
+    self._x = x
+
+  @property
+  @templatemethod("trial")
+  def trial(self):
+      print("call trial here")
+      w = tf.get_variable('w', [])
+      return tf.reduce_sum(self._x) * w
 
 def my_trail(x, share_variable_name):
   var1 = tf.get_variable(share_variable_name, shape=[])
@@ -38,10 +45,17 @@ def my_trail(x, share_variable_name):
 template_my = tf.make_template("template_my", my_trail, share_variable_name="my_v")
 
 def test_trial():
+
   y = tf.placeholder(tf.float32, [None])
   z = tf.placeholder(tf.float32, [None])
-  a_y = trial(y)
-  a_z = trial(z)
+  test = test_property(y)
+
+  a_y_0 = test.trial
+  a_y_1 = test.trial
+
+
+  # a_y = trial(y)
+  # a_z = trial(z)
 
   a_y_t = template_my(y)
   a_z_t = template_my(z)
@@ -49,11 +63,12 @@ def test_trial():
   s = tf.InteractiveSession()
   tf.global_variables_initializer().run()
   print(tf.global_variables())
+  print(a_y_0.eval(feed_dict={y:[1.1, 1.9]}))
+  print(a_y_1.eval(feed_dict={y:[1.1, 1.9]}))
+
   print(a_y_t.eval(feed_dict={y: [1.1, 1.9]}
                    ))
-  print(a_y.eval(feed_dict={y: [1.1, 1.9]}))
-  print(a_z_t.eval(feed_dict={y: [1.1, 1.9]}))
-  print(a_z.eval(feed_dict={z: [1.9, 1.1]}))
+  print(a_z_t.eval(feed_dict={z: [1.1, 1.9]}))
 
 def get_vocab_list(vocab_path):
   lines = codecs.open(vocab_path, "r", "utf-8")
