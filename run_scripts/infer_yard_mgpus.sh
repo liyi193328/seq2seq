@@ -95,13 +95,3 @@ do
 done
 wait
 echo "all is done"
-
-#      --tasks "
-#        - class: DecodeText
-#        - class: DumpBeams
-#          params:
-#            file: ${PRED_DIR}/beams_${i}th.npz"
-#      inference.beam_search.beam_width: $beam_width "
-#      inference.beam_search.length_penalty_weight: 1.0
-#          params:
-#            unk_replace: True" \

@@ -12,15 +12,22 @@ from __future__ import unicode_literals
 __author__ = "liyi"
 __date__ = "2017-07-04"
 
+from pydoc import locate
 
 import os
 import sys
 import shutil
 import tensorflow as tf
-
+from seq2seq import decoders
 from seq2seq.data import vocab
 from seq2seq.models import AttentionSeq2Seq
 from seq2seq import graph_utils
+from seq2seq.features.aliments import get_aliments
+from seq2seq.graph_utils import templatemethod
+from pydoc import locate
+from seq2seq import losses as seq2seq_losses
+from seq2seq.models import bridges
+from seq2seq.contrib.seq2seq import helper as tf_decode_helper
 
 def should_continue(t, timestaps, *args):
   return t < timestaps
@@ -138,18 +145,18 @@ class CopyGenSeq2Seq(AttentionSeq2Seq):
     source_unk_id = self.source_vocab_info.special_vocab.UNK
     target_unk_id = self.target_vocab_info.special_vocab.UNK
 
-    new_source_ids, source_oov_words_list = self.get_re_id_source(
-                                                                  features["source_tokens"], features["source_ids"],
-                                                                  source_unk_id, source_origin_vocab_size
-                                                                  )
+    # new_source_ids, source_oov_words_list = self.get_re_id_source(
+    #                                                               features["source_tokens"], features["source_ids"],
+    #                                                               source_unk_id, source_origin_vocab_size
+    #                                                               )
+    #
+    # ##maintain the max article oov words for the vocab union for decoder's copy and gen
+    # source_oov_words_num = [tf.shape(v)[0] for v in source_oov_words_list]
+    # self.source_max_oov_words = tf.reduce_max(source_oov_words_num, axis=0)
 
-    ##maintain the max article oov words for the vocab union for decoder's copy and gen
-    source_oov_words_num = [tf.shape(v)[0] for v in source_oov_words_list]
-    self.source_max_oov_words = tf.reduce_max(source_oov_words_num, axis=0)
-
-    features["extend_source_ids"] = new_source_ids
-    features["source_max_oov_words"] = self.source_max_oov_words
-    features["source_oov_words_num"] = source_oov_words_num #(batch, article oov word nums)
+    # features["extend_source_ids"] = new_source_ids
+    # features["source_max_oov_words"] = self.source_max_oov_words
+    # features["source_oov_words_num"] = source_oov_words_num #(batch, article oov word nums)
 
 
     # Maybe reverse the source
@@ -197,6 +204,9 @@ class CopyGenSeq2Seq(AttentionSeq2Seq):
 
     with tf.control_dependencies([total_tokens]):
       features["source_tokens"] = tf.identity(features["source_tokens"])
+
+    #cal aliments and mask for copy-gen model, [b, max_target_len, max_source_len]
+    features["aliments"], features["masks"] = get_aliments(features, labels)
 
     # Add to graph collection for later use
     graph_utils.add_dict_to_collection(features, "features")
@@ -265,6 +275,159 @@ class CopyGenSeq2Seq(AttentionSeq2Seq):
         new_target_ids.append(new_seq_target_ids)
 
     return tf.convert_to_tensor(new_target_ids), target_unk_token_nums
+
+
+
+  def _create_decoder(self, encoder_output, features, _labels):
+    attention_class = locate(self.params["attention.class"]) or \
+      getattr(decoders.attention, self.params["attention.class"])
+    attention_layer = attention_class(
+        params=self.params["attention.params"], mode=self.mode)
+
+    # If the input sequence is reversed we also need to reverse
+    # the attention scores.
+    reverse_scores_lengths = None
+    if self.params["source.reverse"]:
+      reverse_scores_lengths = features["source_len"]
+      if self.use_beam_search:
+        reverse_scores_lengths = tf.tile(
+            input=reverse_scores_lengths,
+            multiples=[self.params["inference.beam_search.beam_width"]])
+
+    return self.decoder_class(
+        params=self.params["decoder.params"],
+        mode=self.mode,
+        vocab_size=self.target_vocab_info.total_size,
+        attention_values=encoder_output.attention_values,
+        attention_values_length=encoder_output.attention_values_length,
+        attention_keys=encoder_output.outputs,
+        attention_fn=attention_layer,
+        reverse_scores_lengths=reverse_scores_lengths)
+
+  @templatemethod("encode")
+  def encode(self, features, labels):
+    source_embedded = tf.nn.embedding_lookup(self.source_embedding,
+                                             features["source_ids"])
+    encoder_fn = self.encoder_class(self.params["encoder.params"], self.mode)
+    return encoder_fn(source_embedded, features["source_len"])
+
+  @templatemethod("decode")
+  def decode(self, encoder_output, features, labels):
+    decoder = self._create_decoder(encoder_output, features, labels)
+    if self.use_beam_search:
+      decoder = self._get_beam_search_decoder(decoder)
+
+    bridge = self._create_bridge(
+      encoder_outputs=encoder_output,
+      decoder_state_size=decoder.cell.state_size)
+    if self.mode == tf.contrib.learn.ModeKeys.INFER:
+      return self._decode_infer(decoder, bridge, encoder_output, features,
+                                labels)
+    else:
+      return self._decode_train(decoder, bridge, encoder_output, features,
+                                labels)
+
+  def _create_bridge(self, encoder_outputs, decoder_state_size):
+    """Creates the bridge to be used between encoder and decoder"""
+    bridge_class = locate(self.params["bridge.class"]) or \
+                   getattr(bridges, self.params["bridge.class"])
+    return bridge_class(
+      encoder_outputs=encoder_outputs,
+      decoder_state_size=decoder_state_size,
+      params=self.params["bridge.params"],
+      mode=self.mode)
+
+  def _decode_train(self, decoder, bridge, _encoder_output, _features, labels):
+    """Runs decoding in training mode"""
+    target_embedded = tf.nn.embedding_lookup(self.target_embedding,
+                                             labels["target_ids"])
+    helper_train = tf_decode_helper.TrainingHelper(
+      inputs=target_embedded[:, :-1],
+      sequence_length=labels["target_len"] - 1)
+    decoder_initial_state = bridge()
+    return decoder(decoder_initial_state, helper_train)
+
+  def _decode_infer(self, decoder, bridge, _encoder_output, features, labels):
+    """Runs decoding in inference mode"""
+    batch_size = self.batch_size(features, labels)
+    if self.use_beam_search:
+      batch_size = self.params["inference.beam_search.beam_width"]
+
+    target_start_id = self.target_vocab_info.special_vocab.SEQUENCE_START
+    helper_infer = tf_decode_helper.GreedyEmbeddingHelper(
+      embedding=self.target_embedding,
+      start_tokens=tf.fill([batch_size], target_start_id),
+      end_token=self.target_vocab_info.special_vocab.SEQUENCE_END)
+    decoder_initial_state = bridge()
+    return decoder(decoder_initial_state, helper_infer)
+
+
+  def compute_loss(self, decoder_output, _features, labels):
+    """Computes the loss for this model.
+
+    Returns a tuple `(losses, loss)`, where `losses` are the per-batch
+    losses and loss is a single scalar tensor to minimize.
+    """
+    #pylint: disable=R0201
+    # Calculate loss per example-timestep of shape [B, T]
+    losses = seq2seq_losses.cross_entropy_sequence_loss(
+        logits=decoder_output.logits[:, :, :],
+        targets=tf.transpose(labels["target_ids"][:, 1:], [1, 0]),
+        sequence_length=labels["target_len"] - 1)
+
+    # Calculate the average log perplexity
+    loss = tf.reduce_sum(losses) / tf.to_float(
+        tf.reduce_sum(labels["target_len"] - 1))
+
+    return losses, loss
+
+  def _build(self, features, labels, params):
+    # Pre-process features and labels
+    features, labels = self._preprocess(features, labels)
+
+    encoder_output = self.encode(features, labels)
+    decoder_output, _, = self.decode(encoder_output, features, labels)
+
+    if self.mode == tf.contrib.learn.ModeKeys.INFER:
+      predictions = self._create_predictions(
+          decoder_output=decoder_output, features=features, labels=labels)
+      loss = None
+      train_op = None
+    else:
+      losses, loss = self.compute_loss(decoder_output, features, labels)
+
+      train_op = None
+      if self.mode == tf.contrib.learn.ModeKeys.TRAIN:
+        train_op = self._build_train_op(loss)
+
+      predictions = self._create_predictions(
+          decoder_output=decoder_output,
+          features=features,
+          labels=labels,
+          losses=losses)
+
+    # We add "useful" tensors to the graph collection so that we
+    # can easly find them in our hooks/monitors.
+    graph_utils.add_dict_to_collection(predictions, "predictions")
+
+    #here return 3 elements is ok, in estimator, it will be atomatically into model_fn_lib.ModelFnOps
+    return predictions, loss, train_op
+
+  def __call__(self, features, labels, params):
+    """Creates the model graph. See the model_fn documentation in
+    tf.contrib.learn.Estimator class for a more detailed explanation.
+    """
+    with tf.variable_scope("model"):
+      with tf.variable_scope(self.name):
+        return self._build(features, labels, params)
+
+
+
+
+
+
+
+
 
 
 

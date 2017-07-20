@@ -34,3 +34,4 @@ from seq2seq import models
 from seq2seq import test
 from seq2seq import training
 from seq2seq import utils
+from seq2seq import features
