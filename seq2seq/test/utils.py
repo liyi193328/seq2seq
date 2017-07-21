@@ -42,7 +42,6 @@ def create_temp_parallel_data(sources, targets):
   file_target.flush()
   return file_source, file_target
 
-
 def create_temp_tfrecords(sources, targets):
   """
   Creates a temporary TFRecords file.

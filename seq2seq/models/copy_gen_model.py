@@ -22,7 +22,7 @@ from seq2seq import decoders
 from seq2seq.data import vocab
 from seq2seq.models import AttentionSeq2Seq
 from seq2seq import graph_utils
-from seq2seq.features.aliments import get_aliments
+from seq2seq.features.aliments import get_tensor_aliments
 from seq2seq.graph_utils import templatemethod
 from pydoc import locate
 from seq2seq import losses as seq2seq_losses
