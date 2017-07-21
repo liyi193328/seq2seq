@@ -28,28 +28,7 @@ from pydoc import locate
 from seq2seq import losses as seq2seq_losses
 from seq2seq.models import bridges
 from seq2seq.contrib.seq2seq import helper as tf_decode_helper
-
-def should_continue(t, timestaps, *args):
-  return t < timestaps
-
-def source_seq_iteration(t, max_t, seq_source_ids, cur_source_ids, cur_oov_list, source_seq_words,
-                        source_unk_id, oringin_vocab_size):
-  word_id = tf.gather(seq_source_ids, t)
-  if tf.not_equal(word_id, source_unk_id):
-    cur_source_ids.write(t, word_id)
-  else:
-    word = tf.gather(source_seq_words, t)
-    word_equal_index = tf.where(tf.equal(cur_oov_list, word))
-    tf.assert_less_equal(len(word_equal_index), 1)
-    cur_oov_num = cur_source_ids.size()
-    if len(word_equal_index) == 0:
-      cur_oov_list.write(cur_oov_num, word)
-      cur_source_ids.write(t,
-                           cur_oov_num + oringin_vocab_size)  # article's oov id is range( max_vocab_size, max_vocab_size + len(cur_oov_list) )
-    else:
-      cur_source_ids.write(t, word_equal_index[0][0] + oringin_vocab_size)
-
-  return t + 1, max_t, cur_source_ids, cur_oov_list
+from seq2seq.features import extend_ids
 
 class CopyGenSeq2Seq(AttentionSeq2Seq):
 
@@ -139,24 +118,24 @@ class CopyGenSeq2Seq(AttentionSeq2Seq):
                                           self.params["source.max_seq_len"])
 
     # Look up the source ids in the vocabulary
-    features["source_ids"] = source_vocab_to_id.lookup(features["source_tokens"])
+    features["source_ids"] = source_vocab_to_id.lookup(features["source_tokens"]) #every sequence contains sequence end flag
     features["source_ids"] = tf.Print(features["source_ids"], [ features["source_ids"] ], message="source_ids", summarize=10)
 
     source_unk_id = self.source_vocab_info.special_vocab.UNK
     target_unk_id = self.target_vocab_info.special_vocab.UNK
 
-    # new_source_ids, source_oov_words_list = self.get_re_id_source(
-    #                                                               features["source_tokens"], features["source_ids"],
-    #                                                               source_unk_id, source_origin_vocab_size
-    #                                                               )
-    #
-    # ##maintain the max article oov words for the vocab union for decoder's copy and gen
-    # source_oov_words_num = [tf.shape(v)[0] for v in source_oov_words_list]
-    # self.source_max_oov_words = tf.reduce_max(source_oov_words_num, axis=0)
+    extend_source_ids, source_oov_words_list = extend_ids.get_extend_source_ids(
+                                                                  features["source_tokens"], features["source_ids"],
+                                                                  source_unk_id, source_origin_vocab_size
+                                                                  )
 
-    # features["extend_source_ids"] = new_source_ids
-    # features["source_max_oov_words"] = self.source_max_oov_words
-    # features["source_oov_words_num"] = source_oov_words_num #(batch, article oov word nums)
+    # ##maintain the max article oov words for the vocab union for decoder's copy and gen
+    source_oov_words_num = [tf.shape(v)[0] for v in source_oov_words_list]
+    self.source_max_oov_words = tf.reduce_max(source_oov_words_num, axis=0)
+
+    features["extend_source_ids"] = extend_source_ids
+    features["source_max_oov_words"] = self.source_max_oov_words
+    features["source_oov_words_num"] = source_oov_words_num #(batch, article oov word nums)
 
 
     # Maybe reverse the source
@@ -170,8 +149,8 @@ class CopyGenSeq2Seq(AttentionSeq2Seq):
 
     features["source_len"] = tf.to_int32(features["source_len"])
     tf.summary.histogram("source_len", tf.to_float(features["source_len"]))
-    # tf.summary.histogram("source_oov_len", tf.to_float(features["source_oov_words_num"]))
-    # tf.summary.scalar("sample_max_oov_words", features["max_oov_words"])
+    tf.summary.histogram("source_oov_words_num", tf.to_float(features["source_oov_words_num"]))
+    tf.summary.scalar("batch_max_oov_words", features["max_oov_words"])
 
     if labels is None:
       return features, None
@@ -189,8 +168,9 @@ class CopyGenSeq2Seq(AttentionSeq2Seq):
     labels["target_ids"] = target_vocab_to_id.lookup(labels["target_tokens"])
     labels["target_len"] = tf.to_int32(labels["target_len"])
 
-    # labels["extend_target_ids"], labels["extend_oov_word_num"] = self.get_re_id_target(source_oov_words_list, labels["target_tokens"], labels["target_ids"],
-    #                                                     target_unk_id,  target_origin_vocab_size)
+    labels["extend_target_ids"], labels["target_oov_word_num"] = \
+                        extend_ids.get_extend_target_ids(extend_source_ids, features["source_tokens"],
+                                                             labels["target_tokens"], labels["target_ids"],labels["target_len"], target_unk_id)
 
     tf.summary.histogram("target_len", tf.to_float(labels["target_len"]))
     # tf.summary.histogram("extend_oov_word_num", tf.to_float(labels["extend_oov_word_num"])) #(batch_size, oov word num in extend vocab with source)
@@ -214,68 +194,6 @@ class CopyGenSeq2Seq(AttentionSeq2Seq):
       graph_utils.add_dict_to_collection(labels, "labels")
 
     return features, labels
-
-  def get_re_id_source(self, source_words, source_ids, source_unk_id, oringin_vocab_size):
-
-    source_ids = tf.Print(source_ids, [tf.shape(source_ids)], message="source_ids_shape:")
-    unstack_source_ids = tf.unstack(source_ids)
-    new_source_ids = []
-    source_oov_words_list = []
-
-
-    for i, seq_source_ids in enumerate(unstack_source_ids):#loop batch
-      counter = 0
-      max_t = tf.shape(seq_source_ids)[0]
-      source_seq_words = source_words[i,:]
-      initial_new_source_ids = tf.TensorArray(dtype=tf.int32, size=max_t)
-      initial_cur_oov_words = tf.TensorArray(dtype=tf.string, dynamic_size=True)
-      initial_cur_oov_ids = tf.TensorArray(dtype=tf.int32, size=max_t)
-      initial_t = tf.Variable(0, dtype=tf.int32)
-      t, max_time_stamps, new_seq_source_ids, cur_oov_words = \
-        tf.while_loop( should_continue,  source_seq_iteration, [initial_t, max_t, seq_source_ids,
-                                                               initial_new_source_ids, initial_cur_oov_words,
-                                                               source_seq_words, source_unk_id, oringin_vocab_size])
-      new_seq_source_ids = new_seq_source_ids.pack()
-      cur_oov_words = cur_oov_words.pack()
-      new_source_ids.append(new_seq_source_ids)
-      source_oov_words_list.append(cur_oov_words)
-
-    new_source_ids_tensor = tf.convert_to_tensor(new_source_ids, dtype=tf.int32)
-
-    return new_source_ids_tensor, source_oov_words_list
-
-  def get_re_id_target(self, source_oov_words_list, target_words, target_ids, target_unk_id, oringin_vocab_size):
-
-    unstack_target_ids = tf.unstack(target_ids)
-    tf.assert_equal(len(source_oov_words_list), len(unstack_target_ids))
-
-    new_target_ids = []
-    target_unk_token_nums = []
-    for i, one_seq_target_ids in enumerate(unstack_target_ids): #loop batch
-      new_seq_target_ids = []
-      unk_token_nums = 0
-      target_ids_list = tf.unstack(one_seq_target_ids)
-      for j, word_id in enumerate(target_ids_list):
-        if tf.equal(word_id, target_unk_id):
-          word = target_words[i,j]
-          for k, source_oov_word in enumerate(source_oov_words_list[i]):
-            if tf.equal(word, source_oov_word):
-              # abstract 's word is out of origin vocab, but in article, use the index of article oov word + origin_vocab_size as new id
-              article_oov_word_id = oringin_vocab_size + k
-              new_seq_target_ids.append(article_oov_word_id)
-            else:
-              unk_token_nums += 1
-              new_seq_target_ids.append(target_unk_id)
-        else:
-          unk_token_nums += 1
-          new_seq_target_ids.append(target_unk_id)
-
-        target_unk_token_nums.append(unk_token_nums)
-        new_seq_target_ids = tf.convert_to_tensor(new_seq_target_ids)
-        new_target_ids.append(new_seq_target_ids)
-
-    return tf.convert_to_tensor(new_target_ids), target_unk_token_nums
-
 
 
   def _create_decoder(self, encoder_output, features, _labels):
