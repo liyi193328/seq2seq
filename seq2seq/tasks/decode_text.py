@@ -24,6 +24,7 @@ import functools
 from pydoc import locate
 
 import os
+import copy
 import codecs
 import numpy as np
 
@@ -159,9 +160,12 @@ class DecodeText(InferenceTask):
     fetches["predicted_tokens"] = self._predictions["predicted_tokens"]
     fetches["features.source_len"] = self._predictions["features.source_len"]
     fetches["features.source_tokens"] = self._predictions["features.source_tokens"]
-
+    if "beam_search_output.scores" in self._predictions:
+      fetches["beam_search_output.scores"] = self._predictions["beam_search_output.scores"]
     if "attention_scores" in self._predictions:
       fetches["attention_scores"] = self._predictions["attention_scores"]
+    elif "beam_search_output.original_outputs.attention_scores" in self._predictions:
+      fetches["beam_search_output.original_outputs.attention_scores"] = self._predictions["beam_search_output.original_outputs.attention_scores"]
 
     return tf.train.SessionRunArgs(fetches)
 
@@ -179,59 +183,71 @@ class DecodeText(InferenceTask):
 
   def after_run(self, _run_context, run_values):
 
-    fetches_batch = run_values.results
+    fetches_batch = copy.deepcopy(run_values.results)
     for fetches in unbatch_dict(fetches_batch):
       self.sample_cnt += 1
       # tf.logging.info("done samples: {}".format(self.sample_cnt))
       # Convert to unicode
       fetches["predicted_tokens"] = np.char.decode(
           fetches["predicted_tokens"].astype("S"), "utf-8")
-      predicted_tokens = fetches["predicted_tokens"]
-
-      # If we're using beam search we take the first beam
-      if np.ndim(predicted_tokens) > 1:
-        predicted_tokens = predicted_tokens[:, 0]
+      predicted_tokens_list = fetches["predicted_tokens"]
 
       fetches["features.source_tokens"] = np.char.decode(
-          fetches["features.source_tokens"].astype("S"), "utf-8")
+        fetches["features.source_tokens"].astype("S"), "utf-8")
       source_tokens = fetches["features.source_tokens"]
       source_len = fetches["features.source_len"]
-
-      if self._unk_replace_fn is not None:
-        # We slice the attention scores so that we do not
-        # accidentially replace UNK with a SEQUENCE_END token
-        attention_scores = fetches["attention_scores"]
-        attention_scores = attention_scores[:, :source_len - 1]
-        predicted_tokens = self._unk_replace_fn(
-            source_tokens=source_tokens,
-            predicted_tokens=predicted_tokens,
-            attention_scores=attention_scores)
-
-      sent = self.params["delimiter"].join(predicted_tokens).split(
-          "SEQUENCE_END")[0]
-
-      # Apply postproc
-      if self._postproc_fn:
-        sent = self._postproc_fn(sent)
-
-      sent = sent.strip()
-
       source_sent = self.params["delimiter"].join(source_tokens)
 
+      beam_search_sents = []
+      beam_with = 1
+
+      if predicted_tokens_list.ndim > 1:
+        beam_with = np.shape(predicted_tokens_list)[1]
+
+      # If we're using beam search we take the first beam
+      if np.ndim(predicted_tokens_list) > 1:
+        predicted_tokens = predicted_tokens_list[:, 0]
+
+      for i in range(beam_with):
+        if predicted_tokens_list.ndim > 1:
+          predicted_tokens = predicted_tokens_list[:, i]
+        else:
+          predicted_tokens = predicted_tokens_list
+        if self._unk_replace_fn is not None:
+          # We slice the attention scores so that we do not
+          # accidentially replace UNK with a SEQUENCE_END token
+          if "beam_search_output.original_outputs.attention_scores" in fetches:
+            attention_scores = fetches["beam_search_output.original_outputs.attention_scores"][:,i,:]
+          else:
+            attention_scores = fetches["attention_scores"]
+          attention_scores = attention_scores[:, :source_len - 1]
+          predicted_tokens = self._unk_replace_fn(
+              source_tokens=source_tokens,
+              predicted_tokens=predicted_tokens,
+              attention_scores=attention_scores)
+
+        pred_sent = self.params["delimiter"].join(predicted_tokens).split(
+            "SEQUENCE_END")[0]
+        # Apply postproc
+        if self._postproc_fn:
+          pred_sent = self._postproc_fn(pred_sent)
+
+        pred_sent = pred_sent.strip()
+        beam_search_sents.append(pred_sent)
+
+      pred_sents_str = "\n".join(beam_search_sents)
       if self._save_pred_path is not None:
-        infer_out = source_sent + "\n" + sent + "\n\n"
+        infer_out = source_sent + "\n" + pred_sents_str + "\n\n"
         self.infer_outs.append(infer_out)
-        if self.sample_cnt % 1000 == 0:
+        if self.sample_cnt % 100 == 0:
           self.write_buffer_to_disk()
       else:
-        print(source_sent + "\n" + sent + "\n\n")
+        print(source_sent + "\n" + pred_sents_str + "\n\n")
 
   def end(self, session):
 
     self.write_buffer_to_disk()
-
     tf.logging.info("decode text end session")
-
     if self._save_pred_path is not None:
       if self._pred_fout.closed == False:
         self._pred_fout.close()

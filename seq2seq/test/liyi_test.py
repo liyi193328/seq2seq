@@ -57,6 +57,9 @@ def test_trial():
   # a_y = trial(y)
   # a_z = trial(z)
 
+  a_y = trial(y)
+  # a_z = trial(z)
+
   a_y_t = template_my(y)
   a_z_t = template_my(z)
 

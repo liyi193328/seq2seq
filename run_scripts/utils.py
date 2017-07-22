@@ -3,14 +3,15 @@ import os
 import sys
 import codecs
 import json
-import click
 import glob
 
 def get_dir_or_file_path(dir_or_path, max_deep=1):
+  if os.path.exists(dir_or_path) == False:
+    raise ValueError("{} not exists".format(dir_or_path))
   if os.path.isdir(dir_or_path):
     all_paths = [os.path.join(dir_or_path, name) for name in os.listdir(dir_or_path)]
   else:
-    all_paths = globa.glob(dir_or_path)
+    all_paths = glob.glob(dir_or_path)
   return all_paths
 
 def jsonRead(file_path):
