@@ -162,9 +162,9 @@ if __name__ == "__main__":
   # t(vocab_path)
   dir = "/home/bigdata/active_project/run_tasks/text_sum/debug"
   from os.path import join
-  # test_copy_gen_model(source_path=join(dir,"source.txt"), target_path=join(dir, "target.txt"),
-  #                     vocab_path=join(dir,"vocab.txt"))
+  test_copy_gen_model(source_path=join(dir,"source.txt"), target_path=join(dir, "target.txt"),
+                     vocab_path=join(dir,"vocab.txt"))
 
-  test_trial()
+  # test_trial()
 
 

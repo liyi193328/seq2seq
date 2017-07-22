@@ -79,7 +79,7 @@ if FLAGS.job_name == "worker" and FLAGS.task_index is not None:
       os.environ["CUDA_VISIBLE_DEVICES"] = gpu_th
 
 print("cuda_visible_devices:{}".format(os.getenv("CUDA_VISIBLE_DEVICES")))
-print ("date_index:{}".format(data_index))
+print ("data_index:{}".format(data_index))
 
 def main(_argv):
   """Program entry point.
