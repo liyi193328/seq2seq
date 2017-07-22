@@ -34,7 +34,7 @@ from tensorflow.contrib.slim.python.slim.data import tfexample_decoder
 from seq2seq.configurable import Configurable
 from seq2seq.data import split_tokens_decoder, parallel_data_provider
 from seq2seq.data.sequence_example_decoder import TFSEquenceExampleDecoder
-
+from seq2seq.data import featuredRecordDecoder
 
 def make_input_pipeline_from_def(def_dict, mode, **kwargs):
   """Creates an InputPipeline object from a dictionary definition.
@@ -277,6 +277,75 @@ class TFRecordInputPipeline(InputPipeline):
   def label_keys(self):
     return set(["target_tokens", "target_len"])
 
+
+class FeaturedTFRecordInputPipeline(InputPipeline):
+  """An input pipeline that reads a TFRecords containing both source
+  and target sequences.
+
+  Params:
+    files: An array of file names to read from.
+    source_field: The TFRecord feature field containing the source text.
+    target_field: The TFRecord feature field containing the target text.
+    source_delimiter: A character to split the source text on. Defaults
+      to  " " (space). For character-level training this can be set to the
+      empty string.
+    target_delimiter: Same as `source_delimiter` but for the target text.
+  """
+
+  @staticmethod
+  def default_params():
+    params = InputPipeline.default_params()
+    params.update({
+        "files": [],
+        "source_tokens": "source_tokens",
+        "target_tokens": "target_tokens",
+        "source_ids": "source_ids",
+        "extend_source_ids": "extend_source_ids",
+        "target_ids": "target_ids",
+        "extend_target_ids": "extend_target_ids",
+        "source_oov_list": "source_oov_list",
+        "source_delimiter": " ",
+        "target_delimiter": " ",
+    })
+    return params
+
+  def make_data_provider(self, **kwargs):
+
+    source_keys_to_features = {
+      self.params["source_tokens"]: tf.VarLenFeature(tf.string),
+      self.params["source_ids"]: tf.VarLenFeature(tf.string),
+      self.params["extend_source_ids"]: tf.VarLenFeature(tf.string),
+      self.params["source_oov_list"]: tf.VarLenFeature(tf.string)
+    }
+
+    target_keys_to_features = {
+      self.params["target_tokens"]: tf.VarLenFeature(tf.string),
+      self.params["target_ids"]: tf.VarLenFeature(tf.string),
+      self.params["extend_target_ids"] : tf.VarLenFeature(tf.string)
+    }
+
+    decoder = featuredRecordDecoder.FeaturedTFExampleDecoder(source_keys_to_features,target_keys_to_features)
+
+    dataset = tf.contrib.slim.dataset.Dataset(
+        data_sources=self.params["files"],
+        reader=tf.TFRecordReader,
+        decoder=decoder,
+        num_samples=None,
+        items_to_descriptions={})
+
+    return tf.contrib.slim.dataset_data_provider.DatasetDataProvider(
+        dataset=dataset,
+        shuffle=self.params["shuffle"],
+        num_epochs=self.params["num_epochs"],
+        **kwargs)
+
+  @property
+  def feature_keys(self):
+    return set(["source_tokens", "source_len", "extend_source_ids", "source_ids"])
+
+  @property
+  def label_keys(self):
+    return set(["target_tokens", "target_len", "extend_target_ids", "target_ids"])
 
 class ImageCaptioningInputPipeline(InputPipeline):
   """An input pipeline that reads a TFRecords containing both source

@@ -1,3 +1,5 @@
+#encoding=utf-8
+
 # Copyright 2017 Google Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,9 +26,10 @@ import csv
 import collections
 import tensorflow as tf
 from tensorflow import gfile
+from seq2seq.features import SpecialWords
 
-SpecialVocab = collections.namedtuple("SpecialVocab",
-                                      ["PAD","UNK", "SEQUENCE_START", "SEQUENCE_END", "PARA_START", "PARA_END"])
+#["PAD","UNK", "SEQUENCE_START", "SEQUENCE_END", "PARA_START", "PARA_END"]
+SpecialVocab = collections.namedtuple("SpecialVocab", SpecialWords._total_words)
 
 class VocabInfo(
     collections.namedtuple("VocabInfo",
@@ -65,10 +68,15 @@ def create_tensor_vocab(vocab_instance):
 
   assert isinstance(vocab_instance, Vocab)
   word_to_ids = vocab_instance._word_to_id
+  word_to_count = vocab_instance._word_to_count
+
   vocab, ids = word_to_ids.keys(), word_to_ids.values()
   vocab_size = len(vocab)
+
+  counts = [word_to_count[v] for v in word_to_count]
+  count_tensor = tf.constant(counts, dtype=tf.int64)
   vocab_tensor = tf.constant(vocab)
-  vocab_idx_tensor = ids
+  vocab_idx_tensor = tf.constant(ids, dtype=tf.int64)
 
   # Create ID -> word mapping
   id_to_vocab_init = tf.contrib.lookup.KeyValueTensorInitializer(
@@ -81,7 +89,12 @@ def create_tensor_vocab(vocab_instance):
   vocab_to_id_table = tf.contrib.lookup.HashTable(vocab_to_id_init,
                                                   vocab_instance.special_vocab.UNK)
 
-  return vocab_to_id_table, id_to_vocab_table, None, vocab_size
+  # Create word -> count mapping
+  word_to_count_init = tf.contrib.lookup.KeyValueTensorInitializer(
+      vocab_tensor, count_tensor, tf.string, tf.int64)
+  word_to_count_table = tf.contrib.lookup.HashTable(word_to_count_init, -1)
+
+  return vocab_to_id_table, id_to_vocab_table, word_to_count_table, vocab_size
 
 def create_vocabulary_lookup_table(filename, default_value=None):
   """Creates a lookup table for a vocabulary file.
@@ -162,25 +175,32 @@ class Vocab(object):
     self._vocab_file = vocab_file
     self._word_to_id = {}
     self._id_to_word = {}
+    self._word_to_count = {}
     self._count = 0 # keeps track of total number of words in the Vocab
     special_vocab = get_special_vocab(0)
     self.special_vocab = special_vocab
 
     special_words = list(SpecialVocab._fields)
 
+    print("Special words: {}".format(" ".join(special_words)))
+
     for w in SpecialVocab._fields:
       self._word_to_id[w] = self._count
+      self._word_to_count[w] = -1
       self._id_to_word[self._count] = w
       self._count += 1
 
+    have_nums = False
     # Read the vocab file and add words up to max_size
     with codecs.open(vocab_file, 'r', "utf-8") as vocab_f:
       for line in vocab_f:
         pieces = line.split()
-        if len(pieces) != 2:
-          print('Warning: incorrectly formatted line in vocabulary file: %s\n' % line)
-          continue
+        if len(pieces) == 2:
+          have_nums = True
+          self._word_to_count[pieces[0]] = int(pieces[1])
         w = pieces[0]
+        if not have_nums:
+          self._word_to_count[w] = -1
         if w in special_words:
           s = " ".join(special_words)
           raise Exception('{} shouldn\'t be in the vocab file, but {} is'.format(s,w))
@@ -201,7 +221,7 @@ class Vocab(object):
   def word2id(self, word):
     """Returns the id (integer) of a word (string). Returns [UNK] id if word is OOV."""
     if word not in self._word_to_id:
-      return self._word_to_id["UNK"]
+      return self._word_to_id[SpecialWords.UNK]
     return self._word_to_id[word]
 
   def id2word(self, word_id):
@@ -228,4 +248,24 @@ class Vocab(object):
       for i in range(self.size()):
         word = self._id_to_word[i]
         f.write(word+"\n")
+
+
+if __name__ == "__main__":
+
+  vocab_cls = Vocab("/home/bigdata/active_project/test_seq2seq_py2/yard_seq2seq/q2q_sim_95/data/vocab/shared.vocab.txt")
+  sess = tf.InteractiveSession()
+  vocab_to_id_table, id_to_vocab_table, word_to_count_table, vocab_size = create_tensor_vocab(vocab_cls)
+  words = ["如何", "的", "凤仙花"]
+  words = tf.constant(words, dtype=tf.string)
+  ids = vocab_to_id_table.lookup(words)
+  counts = word_to_count_table.lookup(words)
+
+  sess.run(tf.global_variables_initializer())
+  sess.run(tf.tables_initializer())
+
+  print(ids.eval())
+  print(counts.eval())
+
+
+
 

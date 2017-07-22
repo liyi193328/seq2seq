@@ -19,3 +19,4 @@ from seq2seq.data import parallel_data_provider
 from seq2seq.data import postproc
 from seq2seq.data import split_tokens_decoder
 from seq2seq.data import vocab
+from seq2seq.data import featuredRecordDecoder
