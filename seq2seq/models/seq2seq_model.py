@@ -56,7 +56,7 @@ class Seq2SeqModel(ModelBase):
     params = ModelBase.default_params()
     params.update({
         "source.max_seq_len": 50,
-        "source.reverse": True,
+        "source.reverse": False,
         "target.max_seq_len": 50,
         "embedding.dim": 100,
         "embedding.init_scale": 0.04,
@@ -162,6 +162,7 @@ class Seq2SeqModel(ModelBase):
             self.params["embedding.init_scale"]))
     return self._target_embedding
 
+  #old version
   # @property
   # @templatemethod("source_embedding")
   # def source_embedding(self):

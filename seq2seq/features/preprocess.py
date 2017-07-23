@@ -122,12 +122,18 @@ def get_features(save_path, vocab_cls, source_path, target_path=None, delimeter=
     assert len(target_ids) == len(extend_target_ids)
 
     keys = ["source_tokens", "source_ids", "extend_source_ids","source_oov_list","source_oov_nums","target_tokens", "target_ids", "extend_target_ids"]
+    int64_keys = ["source_ids", "extend_source_ids","source_oov_nums", "target_ids", "extend_target_ids"]
     vars = locals()
     ex = tf.train.Example()
     for key in keys:
       var = vars[key]
-      s = join_str(var).encode("utf-8")
-      ex.features.feature[key].bytes_list.value.extend([s])
+      if key in int64_keys:
+        if type(var) != list:
+          var = [var]
+        ex.features.feature[key].int64_list.value.extend(var)
+      else:
+        s = join_str(var).encode("utf-8")
+        ex.features.feature[key].bytes_list.value.extend([s])
     writer.write(ex.SerializeToString())
 
   writer.close()
@@ -148,14 +154,14 @@ def read_and_decode_single_example(filename):
 
   #tf.FixedLenFeature
   features_cls = {
-    "source_ids": tf.VarLenFeature(tf.string),
+    "source_ids": tf.VarLenFeature(tf.int64),
     "source_tokens": tf.VarLenFeature(tf.string),
-    "target_ids": tf.VarLenFeature(tf.string),
+    "target_ids": tf.VarLenFeature(tf.int64),
     "target_tokens": tf.VarLenFeature(tf.string),
-    "extend_source_ids": tf.VarLenFeature(tf.string),
-    "extend_target_ids": tf.VarLenFeature(tf.string),
+    "extend_source_ids": tf.VarLenFeature(tf.int64),
+    "extend_target_ids": tf.VarLenFeature(tf.int64),
     "source_oov_list": tf.VarLenFeature(tf.string),
-    "source_oov_nums": tf.FixedLenFeature([],tf.string)
+    "source_oov_nums": tf.FixedLenFeature([],tf.int64)
   }
   features = tf.parse_single_example(
     serialized_example,
@@ -171,11 +177,18 @@ def print_values(values, keys, np_array=True):
       v = values[key].values
     else:
       v = values[key]
-    v = np.char.decode(v.astype("S"), "utf-8")
+    if v.ndim == 0:
+      v = [v]
+    if type(v[0]) != np.int64:
+      v = np.char.decode(v.astype("S"), "utf-8")
+      s = " ".join([x.encode("utf-8") for x in v])
+    else:
+      s = " ".join([str(x) for x in v])
     format_values[key] = v
+
     print(key)
-    s = " ".join([x.encode("utf-8") for x in v ])
     print(s)
+
   return format_values
 
 @click.group()
@@ -227,20 +240,24 @@ def pipeline_debug(load_path):
   pipeline = input_pipeline.FeaturedTFRecordInputPipeline(
     params={
       "files": [load_path],
-      "num_epochs": None,
-      "shuffle": False
+      "num_epochs": 2,
+      "shuffle": True
     }, mode=tf.contrib.learn.ModeKeys.TRAIN
   )
   data_provider = pipeline.make_data_provider()
   features = pipeline.read_from_data_provider(data_provider)
   keys = ["source_tokens", "source_ids", "extend_source_ids", "source_oov_list", "source_oov_nums","target_tokens", "target_ids",
           "extend_target_ids"]
-  with tf.Session() as sess:
-    sess.run(tf.global_variables_initializer())
-    sess.run(tf.local_variables_initializer())
+
+  # sess.run(tf.global_variables_initializer())
+  # sess.run(tf.local_variables_initializer())
+
+  with tf.train.MonitoredSession() as sess:
     tf.train.start_queue_runners(sess=sess)
-    res = sess.run(features)
-    print_values(res, keys)
+    while not sess.should_stop():
+      res = sess.run(features)
+      print_values(res, keys)
+      print("\n")
 
 cli.add_command(handle)
 cli.add_command(load_features)

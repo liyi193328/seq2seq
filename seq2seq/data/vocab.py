@@ -15,13 +15,13 @@
 # limitations under the License.
 """Vocabulary related functions.
 """
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
 """
 total vocab = special_words + actual vocab(special words first)  
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import codecs
 import six
@@ -73,7 +73,7 @@ def create_tensor_vocab(vocab_instance):
   word_to_ids = vocab_instance._word_to_id
   word_to_count = vocab_instance._word_to_count
 
-  vocab, ids = word_to_ids.keys(), word_to_ids.values()
+  vocab, ids = list(word_to_ids.keys()), list(word_to_ids.values())
   vocab_size = len(vocab)
 
   counts = [word_to_count[v] for v in word_to_count]
@@ -126,13 +126,13 @@ def create_vocabulary_lookup_table(filename, default_value=None):
   # Load vocabulary into memory
   with gfile.GFile(filename) as file:
     or_vocab = list(line.strip("\n") for line in file)
-  has_counts = len(or_vocab[0].split("\t")) == 2
+  has_counts = (len(or_vocab[0].split("\t")) == 2)
   if has_counts:
-    or_vocab, or_counts = zip(*[_.split("\t") for _ in vocab])
-    or_counts = [float(_) for _ in counts]
-    or_vocab = list(vocab)
+    or_vocab, or_counts = zip(*[_.split("\t") for _ in or_vocab])
+    or_counts = [float(_) for _ in or_counts]
+    or_vocab = list(or_vocab)
   else:
-    or_counts = [-1. for _ in vocab]
+    or_counts = [-1. for _ in or_vocab]
 
   counts.extend(or_counts)
   vocab.extend(or_vocab)

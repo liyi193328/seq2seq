@@ -57,6 +57,8 @@ class FeaturedTFExampleDecoder(data_decoder.DataDecoder):
     else:
       self._items = self._source_feature_keys + self._target_feature_keys
 
+    self._items.extend(["source_len", "target_len"])
+
   def list_items(self):
     """See base class."""
     return self._items
@@ -85,25 +87,25 @@ class FeaturedTFExampleDecoder(data_decoder.DataDecoder):
         if isinstance(v, parsing_ops.FixedLenFeature):
           example[k] = array_ops.reshape(example[k], v.shape)
         if isinstance(example[k], tf.SparseTensor):
-          example[k] = tf.reshape(example[k].values, [])
-        tokens = tf.string_split([example[k]], delimiter=" ").values
-        features[k] = tokens
+          example[k] = example[k].values
+        if example[k].dtype is not tf.int64:
+          tokens = tf.string_split(example[k], delimiter=" ").values
+          features[k] = tokens
+        else:
+          features[k] = example[k]
       return features
 
     source_feature_tensors = get_feature_tensor(example, self._source_keys_to_tensor)
-    source_feature_tensors["source_len"] = tf.size(source_feature_tensors["source_tokens"])
+    source_feature_tensors["source_len"] = tf.size(source_feature_tensors["source_tokens"],out_type=tf.int64)
 
     target_feature_tensors = {}
     have_target = False
     if self._target_feature_keys[0] in example:
       have_target = True
       target_feature_tensors = get_feature_tensor(example, self._target_keys_to_tensor)
-      target_feature_tensors["target_len"] = tf.size(target_feature_tensors["target_tokens"])
+      target_feature_tensors["target_len"] = tf.size(target_feature_tensors["target_tokens"], out_type=tf.int64)
 
     all_features = merge_dict(source_feature_tensors, target_feature_tensors)
-
-    if not items:
-      items = self._items_to_handlers.keys()
 
     outputs = [ all_features[v] for v in self._items ]
 

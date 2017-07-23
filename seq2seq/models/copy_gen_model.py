@@ -28,11 +28,10 @@ from pydoc import locate
 from seq2seq import losses as seq2seq_losses
 from seq2seq.models import bridges
 from seq2seq.contrib.seq2seq import helper as tf_decode_helper
-from seq2seq.features import extend_ids
 
 class CopyGenSeq2Seq(AttentionSeq2Seq):
 
-  def __init__(self,  params, mode, vocab_instance, pointer_gen = True, coverage = False, name="copy_gen_seq2seq"):
+  def __init__(self,  params, mode, vocab_instance, pointer_gen = True, coverage = True, name="copy_gen_seq2seq"):
 
     self._pointer_gen = pointer_gen
     self._coverage = coverage
@@ -46,7 +45,7 @@ class CopyGenSeq2Seq(AttentionSeq2Seq):
     params = AttentionSeq2Seq.default_params().copy()
     params.update({
         "pointer_gen": True,
-        "coverage": False,
+        "coverage": True,
         "embedding.share": True,
         "attention.class": "AttentionLayerBahdanau",
         "attention.params": {}, # Arbitrary attention layer parameters
@@ -94,6 +93,17 @@ class CopyGenSeq2Seq(AttentionSeq2Seq):
     """
     self.create_lookup_table()
 
+    # int64_keys = ["source_len", "source_ids", "extend_source_ids", "source_oov_nums", "target_ids", "extend_target_ids"]
+    # for key in int64_keys:
+    #   if key in features:
+    #     if features[key].dtype is not tf.int32:
+    #       features[key] = tf.string_to_number(features[key], tf.float32)
+    #       features[key] = tf.to_int64(features[key])
+    #   if labels is not None and key in labels:
+    #     if labels[key].dtype is not tf.int32:
+    #       labels[key] = tf.string_to_number(labels[key], tf.float32)
+    #       labels[key] = tf.to_int64(labels[key])
+
     # Slice source to max_len
     if self.params["source.max_seq_len"] is not None:
       features["source_tokens"] = features["source_tokens"][:, :self.params[
@@ -106,21 +116,23 @@ class CopyGenSeq2Seq(AttentionSeq2Seq):
     graph_source_ids = self._source_vocab_to_id.lookup(features["source_tokens"]) #every sequence contains sequence end flag
     tf.assert_equal(graph_source_ids, features["source_ids"])
 
-    features["source_oov_nums"] = tf.cast(features["source_oov_nums"], tf.int32)
+    features["source_oov_nums"] = tf.cast(features["source_oov_nums"], tf.int64)
     features["source_max_oov_num"] = tf.reduce_max(features["source_oov_nums"])
-    features["source_ids"] = tf.Print(features["source_ids"], [ features["source_ids"] ], message="source_ids", summarize=10)
 
+    # features["source_ids"] = tf.Print(features["source_ids"], [ features["source_ids"] ], message="source_ids", summarize=10)
 
     # Maybe reverse the source
     if self.params["source.reverse"] is True:
-      features["source_ids"] = tf.reverse_sequence(
-          input=features["source_ids"],
-          seq_lengths=features["source_len"],
-          seq_dim=1,
-          batch_dim=0,
-          name=None)
+      reverse_keys = ["source_ids", "extend_source_ids"]
+      for key in reverse_keys:
+        features[key] = tf.reverse_sequence(
+            input=features[key],
+            seq_lengths=features["source_len"],
+            seq_dim=1,
+            batch_dim=0,
+            name=None)
 
-    features["source_len"] = tf.cast(features["source_len"], tf.int32)
+    features["source_len"] = tf.cast(features["source_len"], tf.int64)
 
     tf.summary.histogram("source_len", features["source_len"])
     tf.summary.histogram("source_oov_nums", features["source_oov_nums"])
@@ -140,9 +152,9 @@ class CopyGenSeq2Seq(AttentionSeq2Seq):
 
     # Look up the target ids in the vocabulary
     graph_target_ids = self._target_vocab_to_id.lookup(labels["target_tokens"])
-    tf.assert_equal(graph_target_ids, features["target_ids"])
+    tf.assert_equal(graph_target_ids, labels["target_ids"])
 
-    labels["target_len"] = tf.to_int32(labels["target_len"])
+    labels["target_len"] = tf.to_int64(labels["target_len"])
     tf.summary.histogram("target_len", tf.to_float(labels["target_len"]))
 
     # Keep track of the number of processed tokens

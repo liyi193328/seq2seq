@@ -35,6 +35,7 @@ from seq2seq.configurable import Configurable
 from seq2seq.data import split_tokens_decoder, parallel_data_provider
 from seq2seq.data.sequence_example_decoder import TFSEquenceExampleDecoder
 from seq2seq.data import featuredRecordDecoder
+from seq2seq.data.featuredDataProvider import FeaturedDataProvider
 
 def make_input_pipeline_from_def(def_dict, mode, **kwargs):
   """Creates an InputPipeline object from a dictionary definition.
@@ -316,17 +317,17 @@ class FeaturedTFRecordInputPipeline(InputPipeline):
   def make_data_provider(self, **kwargs):
 
     source_keys_to_features = {
-      self.params["source_tokens"]: tf.VarLenFeature(tf.string),
-      self.params["source_ids"]: tf.VarLenFeature(tf.string),
-      self.params["extend_source_ids"]: tf.VarLenFeature(tf.string),
-      self.params["source_oov_list"]: tf.VarLenFeature(tf.string),
-      "source_oov_nums": tf.FixedLenFeature([], tf.string)
+      "source_tokens": tf.VarLenFeature(tf.string),
+      "source_ids": tf.VarLenFeature(tf.int64),
+      "extend_source_ids": tf.VarLenFeature(tf.int64),
+      "source_oov_list": tf.VarLenFeature(tf.string),
+      "source_oov_nums": tf.FixedLenFeature([], tf.int64)
     }
 
     target_keys_to_features = {
-      self.params["target_tokens"]: tf.VarLenFeature(tf.string),
-      self.params["target_ids"]: tf.VarLenFeature(tf.string),
-      self.params["extend_target_ids"] : tf.VarLenFeature(tf.string)
+      "target_tokens": tf.VarLenFeature(tf.string),
+      "target_ids": tf.VarLenFeature(tf.int64),
+      "extend_target_ids" : tf.VarLenFeature(tf.int64)
     }
 
     decoder = featuredRecordDecoder.FeaturedTFExampleDecoder(source_keys_to_features,target_keys_to_features)
@@ -338,7 +339,7 @@ class FeaturedTFRecordInputPipeline(InputPipeline):
         num_samples=None,
         items_to_descriptions={})
 
-    return tf.contrib.slim.dataset_data_provider.DatasetDataProvider(
+    return FeaturedDataProvider(
         dataset=dataset,
         shuffle=self.params["shuffle"],
         num_epochs=self.params["num_epochs"],
