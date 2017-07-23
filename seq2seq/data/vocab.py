@@ -16,6 +16,9 @@
 """Vocabulary related functions.
 """
 
+"""
+total vocab = special_words + actual vocab(special words first)  
+"""
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -55,14 +58,14 @@ def get_vocab_info(vocab_path):
   """
   with gfile.GFile(vocab_path) as file:
     vocab_size = sum(1 for _ in file)
-  special_vocab = get_special_vocab(vocab_size)
+  special_vocab = get_special_vocab(0)
   return VocabInfo(vocab_path, vocab_size, special_vocab)
 
 
-def get_special_vocab(vocabulary_size):
+def get_special_vocab(first_index):
   """Returns the `SpecialVocab` instance for a given vocabulary size.
   """
-  return SpecialVocab(*range(vocabulary_size, vocabulary_size + len(SpecialVocab._fields)))
+  return SpecialVocab(*range(first_index, first_index + len(SpecialVocab._fields)))
 
 def create_tensor_vocab(vocab_instance):
 

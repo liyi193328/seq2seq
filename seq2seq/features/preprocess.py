@@ -29,6 +29,8 @@ def _bytes_feature(value):
 
 def join_str(array, delimeter=" "):
 
+  if type(array) != list:
+    array = [array]
   def convert_unicode(v):
     if type(v) == float or type(v) == int:
       return str(v)
@@ -48,15 +50,15 @@ def get_extend_source_ids(source_tokens, source_ids, vocab_cls, unique=False):
     token = source_tokens[i]
     if source_id == vocab_cls.special_vocab.UNK:
       if unique is True:
-        ix = source_oov_list.index(token)
-        if ix == -1:
-          source_oov_list.append(token)
-          new_id = len(source_oov_list) + oov_start_id
-        else:
+        try:
+          ix = source_oov_list.index(token)
           new_id = ix + oov_start_id
+        except ValueError:
+          new_id = len(source_oov_list) + oov_start_id
+          source_oov_list.append(token)
       else:
-        source_oov_list.append(token)
         new_id = len(source_oov_list) + oov_start_id
+        source_oov_list.append(token)
       extend_source_ids.append(new_id)
     else:
       extend_source_ids.append(source_id)
@@ -111,6 +113,7 @@ def get_features(save_path, vocab_cls, source_path, target_path=None, delimeter=
     target_ids = words_to_id(target_tokens, vocab_cls)
 
     extend_source_ids, source_oov_list = get_extend_source_ids(source_tokens, source_ids, vocab_cls, unique=copy_source_unique)
+    source_oov_nums = len(source_oov_list)
     extend_target_ids = get_extend_target_ids(extend_source_ids, source_tokens, target_tokens, target_ids, vocab_cls.special_vocab.UNK)
 
     assert len(source_ids) == len(source_tokens)
@@ -118,7 +121,7 @@ def get_features(save_path, vocab_cls, source_path, target_path=None, delimeter=
     assert len(target_ids) == len(target_tokens)
     assert len(target_ids) == len(extend_target_ids)
 
-    keys = ["source_tokens", "source_ids", "extend_source_ids","source_oov_list","target_tokens", "target_ids", "extend_target_ids"]
+    keys = ["source_tokens", "source_ids", "extend_source_ids","source_oov_list","source_oov_nums","target_tokens", "target_ids", "extend_target_ids"]
     vars = locals()
     ex = tf.train.Example()
     for key in keys:
@@ -151,7 +154,8 @@ def read_and_decode_single_example(filename):
     "target_tokens": tf.VarLenFeature(tf.string),
     "extend_source_ids": tf.VarLenFeature(tf.string),
     "extend_target_ids": tf.VarLenFeature(tf.string),
-    "source_oov_list": tf.VarLenFeature(tf.string)
+    "source_oov_list": tf.VarLenFeature(tf.string),
+    "source_oov_nums": tf.FixedLenFeature([],tf.string)
   }
   features = tf.parse_single_example(
     serialized_example,
@@ -183,8 +187,7 @@ def cli():
 @click.argument("source_path")
 @click.argument("target_path")
 @click.argument("save_path")
-@click.option("--copy_source_unique", is_flag=True)
-def handle(vocab_path, source_path, target_path, save_path, copy_source_unique=False):
+def handle(vocab_path, source_path, target_path, save_path, copy_source_unique=True):
   vocab_cls = vocab.Vocab(vocab_path)
   print(vocab_cls.special_vocab)
   get_features(save_path,vocab_cls,source_path, target_path,copy_source_unique=copy_source_unique)
@@ -200,7 +203,7 @@ def load_features(load_path):
     sess.run(init)
     tf.train.start_queue_runners(sess=sess)
     values = sess.run(features)
-    keys = ["source_tokens", "source_ids", "extend_source_ids", "source_oov_list", "target_tokens", "target_ids",
+    keys = ["source_tokens", "source_ids", "extend_source_ids", "source_oov_list", "source_oov_nums","target_tokens", "target_ids",
             "extend_target_ids"]
     format_values = {}
     for key in keys:
@@ -230,7 +233,7 @@ def pipeline_debug(load_path):
   )
   data_provider = pipeline.make_data_provider()
   features = pipeline.read_from_data_provider(data_provider)
-  keys = ["source_tokens", "source_ids", "extend_source_ids", "source_oov_list", "target_tokens", "target_ids",
+  keys = ["source_tokens", "source_ids", "extend_source_ids", "source_oov_list", "source_oov_nums","target_tokens", "target_ids",
           "extend_target_ids"]
   with tf.Session() as sess:
     sess.run(tf.global_variables_initializer())

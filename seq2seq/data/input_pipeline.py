@@ -298,12 +298,16 @@ class FeaturedTFRecordInputPipeline(InputPipeline):
     params.update({
         "files": [],
         "source_tokens": "source_tokens",
-        "target_tokens": "target_tokens",
+        "source_len": "source_len",
+        "source_oov_list": "source_oov_list",
+        "source_oov_nums": "source_oov_nums",
         "source_ids": "source_ids",
+
         "extend_source_ids": "extend_source_ids",
         "target_ids": "target_ids",
         "extend_target_ids": "extend_target_ids",
-        "source_oov_list": "source_oov_list",
+        "target_tokens": "target_tokens",
+        "target_len": "target_len",
         "source_delimiter": " ",
         "target_delimiter": " ",
     })
@@ -315,7 +319,8 @@ class FeaturedTFRecordInputPipeline(InputPipeline):
       self.params["source_tokens"]: tf.VarLenFeature(tf.string),
       self.params["source_ids"]: tf.VarLenFeature(tf.string),
       self.params["extend_source_ids"]: tf.VarLenFeature(tf.string),
-      self.params["source_oov_list"]: tf.VarLenFeature(tf.string)
+      self.params["source_oov_list"]: tf.VarLenFeature(tf.string),
+      "source_oov_nums": tf.FixedLenFeature([], tf.string)
     }
 
     target_keys_to_features = {
@@ -341,7 +346,7 @@ class FeaturedTFRecordInputPipeline(InputPipeline):
 
   @property
   def feature_keys(self):
-    return set(["source_tokens", "source_len", "extend_source_ids", "source_ids"])
+    return set(["source_tokens", "source_len", "extend_source_ids", "source_ids", "source_oov_nums"])
 
   @property
   def label_keys(self):
