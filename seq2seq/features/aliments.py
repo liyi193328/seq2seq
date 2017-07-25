@@ -12,7 +12,7 @@ def make_induces(x, y):
   induces = tf.stack([index_x, index_y], axis=2)
   return induces
 
-def get_aliments(self, features, labels):
+def get_tensor_aliments(self, features, labels):
   source_tokens = features["source_tokens"]
   source_len = features["source_len"]
   target_tokens = labels["target_tokens"]

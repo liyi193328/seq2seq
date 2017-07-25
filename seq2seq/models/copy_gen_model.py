@@ -22,20 +22,20 @@ from seq2seq import decoders
 from seq2seq.data import vocab
 from seq2seq.models import AttentionSeq2Seq
 from seq2seq import graph_utils
-from seq2seq.features.aliments import get_aliments
+from seq2seq.features.aliments import get_tensor_aliments
 from seq2seq.graph_utils import templatemethod
 from pydoc import locate
 from seq2seq import losses as seq2seq_losses
 from seq2seq.models import bridges
 from seq2seq.contrib.seq2seq import helper as tf_decode_helper
-from seq2seq.features import extend_ids
 
 class CopyGenSeq2Seq(AttentionSeq2Seq):
 
-  def __init__(self,  params, mode, pointer_gen = True, coverage = False, name="copy_gen_seq2seq"):
+  def __init__(self,  params, mode, vocab_instance, pointer_gen = True, coverage = True, name="copy_gen_seq2seq"):
 
     self._pointer_gen = pointer_gen
     self._coverage = coverage
+    self._vocab_instance = vocab_instance
     super(CopyGenSeq2Seq, self).__init__(params, mode, name) #final self._params will be the params override the default_params
 
   @staticmethod
@@ -45,7 +45,7 @@ class CopyGenSeq2Seq(AttentionSeq2Seq):
     params = AttentionSeq2Seq.default_params().copy()
     params.update({
         "pointer_gen": True,
-        "coverage": False,
+        "coverage": True,
         "embedding.share": True,
         "attention.class": "AttentionLayerBahdanau",
         "attention.params": {}, # Arbitrary attention layer parameters
@@ -57,15 +57,15 @@ class CopyGenSeq2Seq(AttentionSeq2Seq):
     })
     return params
 
-  def load_vocab(self, source_vocab_path, target_vocab_path):
+  def create_lookup_table(self):
 
     # Create vocabulary lookup for source
     source_vocab_to_id, source_id_to_vocab, source_word_to_count, source_origin_vocab_size = \
-      vocab.create_vocabulary_lookup_table(self.source_vocab_info.path)
+      vocab.create_tensor_vocab(self._vocab_instance)
 
     # Create vocabulary look for target
     target_vocab_to_id, target_id_to_vocab, target_word_to_count, target_origin_vocab_size = \
-      vocab.create_vocabulary_lookup_table(self.target_vocab_info.path)
+      source_vocab_to_id, source_id_to_vocab, source_word_to_count, source_origin_vocab_size
 
     # Add vocab tables to graph colection so that we can access them in
     # other places.
@@ -91,24 +91,18 @@ class CopyGenSeq2Seq(AttentionSeq2Seq):
     - Creates vocabulary lookup tables for source and target vocab
     - Converts tokens into vocabulary ids
     """
-    # Create vocabulary lookup for source
-    source_vocab_to_id, source_id_to_vocab, source_word_to_count, source_origin_vocab_size = \
-      vocab.create_vocabulary_lookup_table(self.source_vocab_info.path)
+    self.create_lookup_table()
 
-    # Create vocabulary look for target
-    target_vocab_to_id, target_id_to_vocab, target_word_to_count, target_origin_vocab_size = \
-      vocab.create_vocabulary_lookup_table(self.target_vocab_info.path)
-
-    # Add vocab tables to graph colection so that we can access them in
-    # other places.
-    graph_utils.add_dict_to_collection({
-        "source_vocab_to_id": source_vocab_to_id,
-        "source_id_to_vocab": source_id_to_vocab,
-        "source_word_to_count": source_word_to_count,
-        "target_vocab_to_id": target_vocab_to_id,
-        "target_id_to_vocab": target_id_to_vocab,
-        "target_word_to_count": target_word_to_count
-    }, "vocab_tables")
+    # int64_keys = ["source_len", "source_ids", "extend_source_ids", "source_oov_nums", "target_ids", "extend_target_ids"]
+    # for key in int64_keys:
+    #   if key in features:
+    #     if features[key].dtype is not tf.int32:
+    #       features[key] = tf.string_to_number(features[key], tf.float32)
+    #       features[key] = tf.to_int64(features[key])
+    #   if labels is not None and key in labels:
+    #     if labels[key].dtype is not tf.int32:
+    #       labels[key] = tf.string_to_number(labels[key], tf.float32)
+    #       labels[key] = tf.to_int64(labels[key])
 
     # Slice source to max_len
     if self.params["source.max_seq_len"] is not None:
@@ -118,39 +112,31 @@ class CopyGenSeq2Seq(AttentionSeq2Seq):
                                           self.params["source.max_seq_len"])
 
     # Look up the source ids in the vocabulary
-    features["source_ids"] = source_vocab_to_id.lookup(features["source_tokens"]) #every sequence contains sequence end flag
-    features["source_ids"] = tf.Print(features["source_ids"], [ features["source_ids"] ], message="source_ids", summarize=10)
 
-    source_unk_id = self.source_vocab_info.special_vocab.UNK
-    target_unk_id = self.target_vocab_info.special_vocab.UNK
+    graph_source_ids = self._source_vocab_to_id.lookup(features["source_tokens"]) #every sequence contains sequence end flag
+    tf.assert_equal(graph_source_ids, features["source_ids"])
 
-    extend_source_ids, source_oov_words_list = extend_ids.get_extend_source_ids(
-                                                                  features["source_tokens"], features["source_ids"],
-                                                                  source_unk_id, source_origin_vocab_size
-                                                                  )
+    features["source_oov_nums"] = tf.cast(features["source_oov_nums"], tf.int64)
+    features["source_max_oov_num"] = tf.reduce_max(features["source_oov_nums"])
 
-    # ##maintain the max article oov words for the vocab union for decoder's copy and gen
-    source_oov_words_num = [tf.shape(v)[0] for v in source_oov_words_list]
-    self.source_max_oov_words = tf.reduce_max(source_oov_words_num, axis=0)
-
-    features["extend_source_ids"] = extend_source_ids
-    features["source_max_oov_words"] = self.source_max_oov_words
-    features["source_oov_words_num"] = source_oov_words_num #(batch, article oov word nums)
-
+    # features["source_ids"] = tf.Print(features["source_ids"], [ features["source_ids"] ], message="source_ids", summarize=10)
 
     # Maybe reverse the source
     if self.params["source.reverse"] is True:
-      features["source_ids"] = tf.reverse_sequence(
-          input=features["source_ids"],
-          seq_lengths=features["source_len"],
-          seq_dim=1,
-          batch_dim=0,
-          name=None)
+      reverse_keys = ["source_ids", "extend_source_ids"]
+      for key in reverse_keys:
+        features[key] = tf.reverse_sequence(
+            input=features[key],
+            seq_lengths=features["source_len"],
+            seq_dim=1,
+            batch_dim=0,
+            name=None)
 
-    features["source_len"] = tf.to_int32(features["source_len"])
-    tf.summary.histogram("source_len", tf.to_float(features["source_len"]))
-    tf.summary.histogram("source_oov_words_num", tf.to_float(features["source_oov_words_num"]))
-    tf.summary.scalar("batch_max_oov_words", features["max_oov_words"])
+    features["source_len"] = tf.cast(features["source_len"], tf.int64)
+
+    tf.summary.histogram("source_len", features["source_len"])
+    tf.summary.histogram("source_oov_nums", features["source_oov_nums"])
+    tf.summary.scalar("batch_max_oov_words", features["source_max_oov_num"])
 
     if labels is None:
       return features, None
@@ -165,15 +151,11 @@ class CopyGenSeq2Seq(AttentionSeq2Seq):
                                         self.params["target.max_seq_len"])
 
     # Look up the target ids in the vocabulary
-    labels["target_ids"] = target_vocab_to_id.lookup(labels["target_tokens"])
-    labels["target_len"] = tf.to_int32(labels["target_len"])
+    graph_target_ids = self._target_vocab_to_id.lookup(labels["target_tokens"])
+    tf.assert_equal(graph_target_ids, labels["target_ids"])
 
-    labels["extend_target_ids"], labels["target_oov_word_num"] = \
-                        extend_ids.get_extend_target_ids(extend_source_ids, features["source_tokens"],
-                                                             labels["target_tokens"], labels["target_ids"],labels["target_len"], target_unk_id)
-
+    labels["target_len"] = tf.to_int64(labels["target_len"])
     tf.summary.histogram("target_len", tf.to_float(labels["target_len"]))
-    # tf.summary.histogram("extend_oov_word_num", tf.to_float(labels["extend_oov_word_num"])) #(batch_size, oov word num in extend vocab with source)
 
     # Keep track of the number of processed tokens
     num_tokens = tf.reduce_sum(labels["target_len"])
@@ -185,16 +167,12 @@ class CopyGenSeq2Seq(AttentionSeq2Seq):
     with tf.control_dependencies([total_tokens]):
       features["source_tokens"] = tf.identity(features["source_tokens"])
 
-    #cal aliments and mask for copy-gen model, [b, max_target_len, max_source_len]
-    features["aliments"], features["masks"] = get_aliments(features, labels)
-
     # Add to graph collection for later use
     graph_utils.add_dict_to_collection(features, "features")
     if labels:
       graph_utils.add_dict_to_collection(labels, "labels")
 
     return features, labels
-
 
   def _create_decoder(self, encoder_output, features, _labels):
     attention_class = locate(self.params["attention.class"]) or \

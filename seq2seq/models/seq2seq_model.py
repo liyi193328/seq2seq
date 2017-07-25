@@ -43,7 +43,6 @@ class Seq2SeqModel(ModelBase):
     self._source_emb_scope = None
     self._target_embedding = None
     self._target_emb_scope = None
-
     self.source_vocab_info = None
     if "vocab_source" in self.params and self.params["vocab_source"]:
       self.source_vocab_info = vocab.get_vocab_info(self.params["vocab_source"])
@@ -57,7 +56,7 @@ class Seq2SeqModel(ModelBase):
     params = ModelBase.default_params()
     params.update({
         "source.max_seq_len": 50,
-        "source.reverse": True,
+        "source.reverse": False,
         "target.max_seq_len": 50,
         "embedding.dim": 100,
         "embedding.init_scale": 0.04,
@@ -128,52 +127,21 @@ class Seq2SeqModel(ModelBase):
     """
     return tf.shape(features["source_ids"])[0]
 
-  # @property
-  # @templatemethod("source_embedding")
-  # def source_embedding(self):
-  #   """Returns the embedding used for the source sequence.
-  #   """
-  #   if self._source_embedding is not None:
-  #     return self._source_embedding
-  #   self._source_emb_scope = tf.get_variable_scope()
-  #   self._source_embedding = tf.get_variable(
-  #       name="W",
-  #       shape=[self.source_vocab_info.total_size, self.params["embedding.dim"]],
-  #       initializer=tf.random_uniform_initializer(
-  #           -self.params["embedding.init_scale"],
-  #           self.params["embedding.init_scale"]))
-  #   return self._source_embedding
-  #
-  # @property
-  # @templatemethod("target_embedding")
-  # def target_embedding(self):
-  #   """Returns the embedding used for the target sequence.
-  #   """
-  #   if self.params["embedding.share"]:
-  #     if self._source_embedding is not None:
-  #       self._target_emb_scope = self._source_emb_scope
-  #       return self._source_embedding
-  #
-  #   self._target_emb_scope = tf.get_variable_scope()
-  #   self._target_embedding = tf.get_variable(
-  #       name="W",
-  #       shape=[self.target_vocab_info.total_size, self.params["embedding.dim"]],
-  #       initializer=tf.random_uniform_initializer(
-  #           -self.params["embedding.init_scale"],
-  #           self.params["embedding.init_scale"]))
-  #   return self._target_embedding
-
   @property
   @templatemethod("source_embedding")
   def source_embedding(self):
     """Returns the embedding used for the source sequence.
     """
-    return tf.get_variable(
+    if self._source_embedding is not None:
+      return self._source_embedding
+    self._source_emb_scope = tf.get_variable_scope()
+    self._source_embedding = tf.get_variable(
         name="W",
         shape=[self.source_vocab_info.total_size, self.params["embedding.dim"]],
         initializer=tf.random_uniform_initializer(
             -self.params["embedding.init_scale"],
             self.params["embedding.init_scale"]))
+    return self._source_embedding
 
   @property
   @templatemethod("target_embedding")
@@ -181,13 +149,45 @@ class Seq2SeqModel(ModelBase):
     """Returns the embedding used for the target sequence.
     """
     if self.params["embedding.share"]:
-      return self.source_embedding
-    return tf.get_variable(
+      if self._source_embedding is not None:
+        self._target_emb_scope = self._source_emb_scope
+        return self._source_embedding
+
+    self._target_emb_scope = tf.get_variable_scope()
+    self._target_embedding = tf.get_variable(
         name="W",
         shape=[self.target_vocab_info.total_size, self.params["embedding.dim"]],
         initializer=tf.random_uniform_initializer(
             -self.params["embedding.init_scale"],
             self.params["embedding.init_scale"]))
+    return self._target_embedding
+
+  #old version
+  # @property
+  # @templatemethod("source_embedding")
+  # def source_embedding(self):
+  #   """Returns the embedding used for the source sequence.
+  #   """
+  #   return tf.get_variable(
+  #       name="W",
+  #       shape=[self.source_vocab_info.total_size, self.params["embedding.dim"]],
+  #       initializer=tf.random_uniform_initializer(
+  #           -self.params["embedding.init_scale"],
+  #           self.params["embedding.init_scale"]))
+  #
+  # @property
+  # @templatemethod("target_embedding")
+  # def target_embedding(self):
+  #   """Returns the embedding used for the target sequence.
+  #   """
+  #   if self.params["embedding.share"]:
+  #     return self.source_embedding
+  #   return tf.get_variable(
+  #       name="W",
+  #       shape=[self.target_vocab_info.total_size, self.params["embedding.dim"]],
+  #       initializer=tf.random_uniform_initializer(
+  #           -self.params["embedding.init_scale"],
+  #           self.params["embedding.init_scale"]))
 
   @templatemethod("encode")
   def encode(self, features, labels):
