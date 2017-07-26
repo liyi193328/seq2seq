@@ -9,6 +9,7 @@ import logging
 import tensorflow as tf
 import click
 import six
+import pyltp
 from seq2seq.data import vocab
 from seq2seq.features import SpecialWords
 
@@ -197,10 +198,13 @@ def cli():
 
 @click.command()
 @click.argument("vocab_path")
+@click.argument("pos_path")
+@click.argument("ner_path")
+@click.argument("tfidf_path")
 @click.argument("source_path")
 @click.argument("target_path")
 @click.argument("save_path")
-def handle(vocab_path, source_path, target_path, save_path, copy_source_unique=True):
+def handle(vocab_path, pos_path, ner_path, tfidf_path, source_path, target_path, save_path, copy_source_unique=True):
   vocab_cls = vocab.Vocab(vocab_path)
   print(vocab_cls.special_vocab)
   get_features(save_path,vocab_cls,source_path, target_path,copy_source_unique=copy_source_unique)

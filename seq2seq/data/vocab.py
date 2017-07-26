@@ -32,7 +32,7 @@ from tensorflow import gfile
 from seq2seq.features import SpecialWords
 
 #["PAD","UNK", "SEQUENCE_START", "SEQUENCE_END", "PARA_START", "PARA_END"]
-SpecialVocab = collections.namedtuple("SpecialVocab", SpecialWords._total_words)
+SpecialVocab = collections.namedtuple("SpecialVocab", SpecialWords)
 
 class VocabInfo(
     collections.namedtuple("VocabInfo",
@@ -46,7 +46,7 @@ class VocabInfo(
     return self.vocab_size + len(self.special_vocab)
 
 
-def get_vocab_info(vocab_path):
+def get_vocab_info(vocab_path, special_words=SpecialWords):
   """Creates a `VocabInfo` instance that contains the vocabulary size and
     the special vocabulary for the given file.
 
@@ -58,13 +58,14 @@ def get_vocab_info(vocab_path):
   """
   with gfile.GFile(vocab_path) as file:
     vocab_size = sum(1 for _ in file)
-  special_vocab = get_special_vocab(0)
+  special_vocab = get_special_vocab(0, special_words)
   return VocabInfo(vocab_path, vocab_size, special_vocab)
 
 
-def get_special_vocab(first_index):
+def get_special_vocab(first_index, special_words):
   """Returns the `SpecialVocab` instance for a given vocabulary size.
   """
+  SpecialVocab = collections.namedtuple("SpecialVocab", special_words)
   return SpecialVocab(*range(first_index, first_index + len(SpecialVocab._fields)))
 
 def create_tensor_vocab(vocab_instance):
@@ -99,7 +100,9 @@ def create_tensor_vocab(vocab_instance):
 
   return vocab_to_id_table, id_to_vocab_table, word_to_count_table, vocab_size
 
-def create_vocabulary_lookup_table(filename, default_value=None):
+def create_vocabulary_lookup_table(filename, specaial_words = SpecialWords, default_value=None):
+
+  #old version
   """Creates a lookup table for a vocabulary file.
 
   Args:
@@ -118,7 +121,7 @@ def create_vocabulary_lookup_table(filename, default_value=None):
     raise ValueError("File does not exist: {}".format(filename))
 
   # Add special vocabulary items
-  special_vocab = get_special_vocab(0)
+  special_vocab = get_special_vocab(0, specaial_words)
 
   vocab = list(SpecialVocab._fields)
   counts = [-1. for _ in list(special_vocab._fields)]
@@ -165,11 +168,10 @@ def create_vocabulary_lookup_table(filename, default_value=None):
 
   return vocab_to_id_table, id_to_vocab_table, word_to_count_table, vocab_size
 
-
 class Vocab(object):
   """Vocabulary class for mapping between words and ids (integers)"""
 
-  def __init__(self, vocab_file, max_size=None):
+  def __init__(self, vocab_file, special_words=SpecialWords, max_size=None):
     """Creates a vocab of up to max_size words, reading from the vocab_file. If max_size is 0, reads the entire vocab file.
 
     Args:
@@ -180,7 +182,10 @@ class Vocab(object):
     self._id_to_word = {}
     self._word_to_count = {}
     self._count = 0 # keeps track of total number of words in the Vocab
-    special_vocab = get_special_vocab(0)
+
+    if special_words is None:
+      special_words = []
+    special_vocab = get_special_vocab(0, special_words)
     self.special_vocab = special_vocab
 
     special_words = list(SpecialVocab._fields)
