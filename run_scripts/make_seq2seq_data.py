@@ -344,8 +344,39 @@ def partition_question(file_path, save_prefix, parts, delimiter="\t"):
     save_path = "{}_part_{}".format(save_prefix, i)
     write_list_to_file(d, save_path)
 
+@click.command()
+@click.argument("path")
+@click.argument("save_dir")
+@click.argument("name")
+@click.option("--part_size", default=None, type=int, help="if none, don't split, or split to multiple parts with len(part)=part_size")
+def make_from_parallel(path, save_dir, name, part_size=None):
+  assert  name in ["train", "dev", "test"]
+  cnt = 0
+  part = None
+  if part_size is not None:
+    part = 0
+  sources, targets = [], []
+  out_dir = os.path.join(save_dir, name)
+  f = codecs.open(path, "r", "utf-8")
+  for line in f:
+    if part_size is not None and (cnt+1)%part_size == 0:
+      write_some_data(sources, targets, out_dir, part=part)
+      part += 1
+      cnt = 0
+      sources , targets = [], []
+    cnt += 1
+    st = line.strip().split("\t")
+    s = st[0]
+    t = st[1]
+    sources.append(s)
+    targets.append(t)
+
+  #write
+  write_some_data(sources, targets, out_dir, part=part)
+
 cli.add_command(make_sep_datasets)
 cli.add_command(partition_question)
+cli.add_command(make_from_parallel)
 
 if __name__ == '__main__':
 

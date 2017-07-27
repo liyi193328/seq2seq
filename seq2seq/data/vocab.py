@@ -32,7 +32,7 @@ from tensorflow import gfile
 from seq2seq.features import SpecialWords
 
 #["PAD","UNK", "SEQUENCE_START", "SEQUENCE_END", "PARA_START", "PARA_END"]
-SpecialVocab = collections.namedtuple("SpecialVocab", SpecialWords)
+SpecialVocab = collections.namedtuple("SpecialVocab", SpecialWords._total_words)
 
 class VocabInfo(
     collections.namedtuple("VocabInfo",
