@@ -108,9 +108,8 @@ if __name__ == "__main__":
       default=False)
   parser.add_argument(
       "infile",
-      nargs="?",
-      type=argparse.FileType("r"),
-      default=sys.stdin,
+      nargs="+",
+      type=str,
       help="Input tokenized text file to be processed.")
   parser.add_argument(
       "--delimiter",
