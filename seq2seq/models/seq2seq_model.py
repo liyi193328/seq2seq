@@ -261,8 +261,7 @@ class Seq2SeqModel(ModelBase):
                                           self.params["source.max_seq_len"])
 
     # Look up the source ids in the vocabulary
-    features["source_ids"] = source_vocab_to_id.lookup(features[
-        "source_tokens"])
+    features["source_ids"] = source_vocab_to_id.lookup(features["source_tokens"])
 
     # Maybe reverse the source
     if self.params["source.reverse"] is True:

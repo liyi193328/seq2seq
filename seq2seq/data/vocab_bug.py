@@ -37,7 +37,7 @@ SpecialWords = SpecialWordsIns._total_words
 SpecialVocab = collections.namedtuple("SpecialVocab", SpecialWordsIns._total_words)
 
 class VocabInfo(
-    collections.namedtuple("VocbabInfo",
+    collections.namedtuple("VocabInfo",
                            ["path", "vocab_size", "special_vocab"])):
   """Convenience structure for vocabulary information.
   """
@@ -48,24 +48,27 @@ class VocabInfo(
     return self.vocab_size + len(self.special_vocab)
 
 
-def get_vocab_info(vocab_path):
+def get_vocab_info(vocab_path, special_words=SpecialWords):
   """Creates a `VocabInfo` instance that contains the vocabulary size and
     the special vocabulary for the given file.
+
   Args:
     vocab_path: Path to a vocabulary file with one word per line.
+
   Returns:
     A VocabInfo tuple.
   """
   with gfile.GFile(vocab_path) as file:
     vocab_size = sum(1 for _ in file)
-  special_vocab = get_special_vocab(vocab_size)
+  special_vocab = get_special_vocab(0, special_words)
   return VocabInfo(vocab_path, vocab_size, special_vocab)
 
 
-def get_special_vocab(vocabulary_size, special_words=SpecialWords):
+def get_special_vocab(first_index, special_words):
   """Returns the `SpecialVocab` instance for a given vocabulary size.
   """
-  return SpecialVocab(*range(vocabulary_size, vocabulary_size + len(special_words)))
+  SpecialVocab = collections.namedtuple("SpecialVocab", special_words)
+  return SpecialVocab(*range(first_index, first_index + len(special_words)))
 
 def create_tensor_vocab(vocab_instance):
 
@@ -99,39 +102,46 @@ def create_tensor_vocab(vocab_instance):
 
   return vocab_to_id_table, id_to_vocab_table, word_to_count_table, vocab_size
 
-def create_vocabulary_lookup_table(filename, default_value=None):
+def create_vocabulary_lookup_table(filename, specaial_words = SpecialWords, default_value=None):
+
+  #old version
   """Creates a lookup table for a vocabulary file.
+
   Args:
     filename: Path to a vocabulary file containg one word per line.
       Each word is mapped to its line number.
     default_value: UNK tokens will be mapped to this id.
       If None, UNK tokens will be mapped to [vocab_size]
+
     Returns:
       A tuple (vocab_to_id_table, id_to_vocab_table,
       word_to_count_table, vocab_size). The vocab size does not include
       the UNK token.
     """
+
   if not gfile.Exists(filename):
     raise ValueError("File does not exist: {}".format(filename))
 
+  # Add special vocabulary items
+  special_vocab = get_special_vocab(0, specaial_words)
+
+  vocab = list(SpecialVocab._fields)
+  counts = [-1. for _ in list(special_vocab._fields)]
+
   # Load vocabulary into memory
   with gfile.GFile(filename) as file:
-    vocab = list(line.strip("\n") for line in file)
-  vocab_size = len(vocab)
-
-  has_counts = len(vocab[0].split("\t")) == 2
+    or_vocab = list(line.strip("\n") for line in file)
+  has_counts = (len(or_vocab[0].split("\t")) == 2)
   if has_counts:
-    vocab, counts = zip(*[_.split("\t") for _ in vocab])
-    counts = [float(_) for _ in counts]
-    vocab = list(vocab)
+    or_vocab, or_counts = zip(*[_.split("\t") for _ in or_vocab])
+    or_counts = [float(_) for _ in or_counts]
+    or_vocab = list(or_vocab)
   else:
-    counts = [-1. for _ in vocab]
+    or_counts = [-1. for _ in or_vocab]
 
-  # Add special vocabulary items
-  special_vocab = get_special_vocab(vocab_size)
-  vocab += list(special_vocab._fields)
-  vocab_size += len(special_vocab)
-  counts += [-1. for _ in list(special_vocab._fields)]
+  counts.extend(or_counts)
+  vocab.extend(or_vocab)
+  vocab_size = len(vocab)
 
   if default_value is None:
     default_value = special_vocab.UNK
@@ -180,6 +190,17 @@ class Vocab(object):
     else:
       special_words = special_word_ins._total_words
 
+    self.special_word_ins = special_word_ins
+    special_vocab = get_special_vocab(0, special_words) #[0, len(special_words))
+    self.special_vocab = special_vocab
+    print("Special words: {}".format(" ".join(special_words)))
+
+    for w in SpecialVocab._fields:
+      self._word_to_id[w] = self._count
+      self._word_to_count[w] = -1
+      self._id_to_word[self._count] = w
+      self._count += 1
+
     have_nums = False
     # Read the vocab file and add words up to max_size
     with codecs.open(vocab_file, 'r', "utf-8") as vocab_f:
@@ -206,18 +227,7 @@ class Vocab(object):
     last_word = self._id_to_word[self._count-1]
     if six.PY2:
       last_word = last_word.encode("utf-8")
-    print("Finished constructing vocabulary of {} total words. Last actual word added: {}".format(self._count, last_word))
-
-    self.special_word_ins = special_word_ins
-    special_vocab = get_special_vocab(self._count, special_words) #[0, len(special_words))
-    self.special_vocab = special_vocab
-    print("Special words: {}".format(" ".join(special_words)))
-
-    for w in special_vocab._fields:
-      self._word_to_id[w] = self._count
-      self._word_to_count[w] = -1
-      self._id_to_word[self._count] = w
-      self._count += 1
+    print("Finished constructing vocabulary of {} total words. Last word added: {}".format(self._count, last_word))
 
   def word2id(self, word):
     """Returns the id (integer) of a word (string). Returns [UNK] id if word is OOV."""
@@ -263,6 +273,7 @@ if __name__ == "__main__":
   words = tf.constant(words, dtype=tf.string)
   ids = vocab_to_id_table.lookup(words)
   counts = word_to_count_table.lookup(words)
+
   reverse_words = id_to_vocab_table.lookup(ids)
 
   sess.run(tf.global_variables_initializer())
@@ -275,6 +286,8 @@ if __name__ == "__main__":
   for word in words.eval():
     x = word.decode("utf-8")
     print(x, vocab_cls.word2id(x))
+
+  vocab_info = get_vocab_info()
 
 
 

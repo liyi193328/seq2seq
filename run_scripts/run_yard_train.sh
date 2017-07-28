@@ -43,7 +43,7 @@ SEQ2SEQ_PROJECT_DIR=${PWD}
 RUN_NAME=${RUN_NAME:=run_try}
 TASK_NAME=${TASK_NAME:=stable_single}
 
-ROOT=${ROOT:=/mnt/yardcephfs/mmyard/g_wxg_td_prc/turingli}
+ROOT=${ROOT:=/mnt/yardcephfs/mmyard/g_wxg_td_prc/mng/turingli}
 DEFAULT_TASK_ROOT=$ROOT/$TASK_NAME
 TASK_ROOT=${TASK_ROOT:=$DEFAULT_TASK_ROOT}
 
@@ -114,7 +114,7 @@ python -m bin.train \
   --output_dir=$MODEL_DIR \
   --clear_output_dir=${CLEAR_OUTPUT_DIR} \
   --save_checkpoints_secs=$SAVE_CHECK_SECS \
-  --keep_checkpoint_max=$KEEP_CHECK_MAX
+  --keep_checkpoint_max=$KEEP_CHECK_MAX \
   --set_eval_node=1
 
 #  --model_params="

@@ -198,16 +198,26 @@ def cli():
 
 @click.command()
 @click.argument("vocab_path")
-@click.argument("pos_path")
-@click.argument("ner_path")
-@click.argument("tfidf_path")
 @click.argument("source_path")
 @click.argument("target_path")
 @click.argument("save_path")
-def handle(vocab_path, pos_path, ner_path, tfidf_path, source_path, target_path, save_path, copy_source_unique=True):
-  vocab_cls = vocab.Vocab(vocab_path)
-  print(vocab_cls.special_vocab)
-  get_features(save_path,vocab_cls,source_path, target_path,copy_source_unique=copy_source_unique)
+@click.argument("--pos_path", type=str)
+@click.argument("--ner_path", type=str)
+@click.argument("--tfidf_path", type=str)
+@click.argument("--char_path", type=str)
+def handle(vocab_path, source_path, target_path, save_path, copy_source_unique=True,
+           pos_path=None, ner_path=None, tfidf_path=None, char_path=None):
+  word_vocab = vocab.Vocab(vocab_path)
+  char_vocab = vocab.Vocab(char_path, )
+  pos_vocab = vocab.Vocab(pos_path, special_word_ins=None)
+  ner_vocab = vocab.Vocab(ner_path, special_word_ins=None)
+  tfidf_vocab = vocab.Vocab(tfidf_path, special_word_ins=None)
+  print(word_vocab.special_vocab)
+  vocab_dict = {
+    "char_dict": char_vocab,
+    "word_dict": word_vocab
+  }
+  get_features(save_path, word_vocab, ner_vocab, tfidf_vocab,source_path, target_path,copy_source_unique=copy_source_unique)
 
 @click.command()
 @click.argument("load_path")
