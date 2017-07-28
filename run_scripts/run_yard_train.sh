@@ -45,7 +45,7 @@ TASK_NAME=${TASK_NAME:=stable_single}
 
 ROOT=${ROOT:=/mnt/yardcephfs/mmyard/g_wxg_td_prc/turingli}
 DEFAULT_TASK_ROOT=$ROOT/$TASK_NAME
-TASK_ROOT={TASK_ROOT:=$DEFAULT_TASK_ROOT}
+TASK_ROOT=${TASK_ROOT:=$DEFAULT_TASK_ROOT}
 
 #model dir:{root}/{task_name}/model/{run_name}/*
 DEFAULT_MODEL_DIR=${TASK_ROOT}/model/${RUN_NAME}
