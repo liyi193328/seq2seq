@@ -46,7 +46,7 @@ class VocabInfo(
     return self.vocab_size + len(self.special_vocab)
 
 
-def get_vocab_info(vocab_path, special_words=SpecialWords):
+def get_vocab_info(vocab_path, special_words=SpecialWords._total_words):
   """Creates a `VocabInfo` instance that contains the vocabulary size and
     the special vocabulary for the given file.
 
@@ -65,8 +65,8 @@ def get_vocab_info(vocab_path, special_words=SpecialWords):
 def get_special_vocab(first_index, special_words):
   """Returns the `SpecialVocab` instance for a given vocabulary size.
   """
-  SpecialVocab = collections.namedtuple("SpecialVocab", special_words)
-  return SpecialVocab(*range(first_index, first_index + len(SpecialVocab._fields)))
+  special_vocab = collections.namedtuple("SpecialVocab", special_words)
+  return special_vocab(*range(first_index, first_index + len(special_vocab._fields)))
 
 def create_tensor_vocab(vocab_instance):
 
@@ -100,7 +100,7 @@ def create_tensor_vocab(vocab_instance):
 
   return vocab_to_id_table, id_to_vocab_table, word_to_count_table, vocab_size
 
-def create_vocabulary_lookup_table(filename, specaial_words = SpecialWords, default_value=None):
+def create_vocabulary_lookup_table(filename, specaial_words = SpecialWords._total_words, default_value=None):
 
   #old version
   """Creates a lookup table for a vocabulary file.
