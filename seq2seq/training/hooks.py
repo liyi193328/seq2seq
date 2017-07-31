@@ -250,8 +250,8 @@ class TrainSampleHook(TrainingHook):
       filepath = os.path.join(self._sample_dir,
                               "samples_{:06d}.txt".format(step))
       os.umask(0)
-      with gfile.GFile(filepath, "w") as file:
-        file.write(result_str)
+      # with gfile.GFile(filepath, "w") as file:
+      #   file.write(result_str)
     self._timer.update_last_triggered_step(self._iter_count - 1)
 
 
