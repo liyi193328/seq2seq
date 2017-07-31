@@ -446,7 +446,9 @@ class EvaluationSaveSampleHook(EvalutionHook):
     self._current_global_step = None
     # Create the sample directory
     if self._evalution_result_dir is not None:
-      gfile.MakeDirs(self._evalution_result_dir)
+      os.umask(0)
+      if os.path.exists(self._evalution_result_dir) is False:
+        gfile.MakeDirs(self._evalution_result_dir)
 
   def before_run(self, _run_context):
     tf.logging.info("eval {}_th batch start...".format(self._iter_count))
