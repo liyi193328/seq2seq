@@ -50,9 +50,9 @@ TASK_ROOT=${TASK_ROOT:=$DEFAULT_TASK_ROOT}
 #model dir:{root}/{task_name}/model/{run_name}/*
 DEFAULT_MODEL_DIR=${TASK_ROOT}/model/${RUN_NAME}
 MODEL_DIR=${MODEL_DIR:=$DEFAULT_MODEL_DIR}
-umask 0
 mkdir -p ${MODEL_DIR}
 echo "MODEL_DIR: $MODEL_DIR"
+chmod -R 777 ${MODEL_DIR}
 
 #data dir:{root}/{task_name}/data/[train|dev]
 DEFAULT_DATA_DIR=${TASK_ROOT}/data
