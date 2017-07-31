@@ -207,6 +207,7 @@ class TrainSampleHook(TrainingHook):
     # Create the sample directory
     if self._sample_dir is not None:
       gfile.MakeDirs(self._sample_dir)
+      os.chmod(self._sample_dir, 777)
 
   def before_run(self, _run_context):
     self._should_trigger = self._timer.should_trigger_for_step(self._iter_count)
@@ -248,6 +249,7 @@ class TrainSampleHook(TrainingHook):
     if self._sample_dir:
       filepath = os.path.join(self._sample_dir,
                               "samples_{:06d}.txt".format(step))
+      os.umask(0)
       with gfile.GFile(filepath, "w") as file:
         file.write(result_str)
     self._timer.update_last_triggered_step(self._iter_count - 1)
