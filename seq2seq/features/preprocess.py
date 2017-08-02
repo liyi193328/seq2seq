@@ -10,8 +10,10 @@ import tensorflow as tf
 import click
 import six
 import pyltp
+import seq2seq.features.nlp as NLP
 from seq2seq.data import vocab
-from seq2seq.features import SpecialWords
+from seq2seq.features import global_vars
+from seq2seq.features import SpecialWords, SpecialWordsIns
 
 logger = logging.getLogger(__name__)
 
@@ -84,7 +86,7 @@ def get_extend_target_ids(extend_source_ids, source_tokens, target_tokens, targe
       extend_target_ids.append(target_id)
   return extend_target_ids
 
-def get_features(save_path, vocab_cls, source_path, target_path=None, delimeter=" ", copy_source_unique=False):
+def get_features(save_path, vocab_cls, pos_cls, ner_cls, tfidf_cls, source_path, target_path=None, delimeter=" ", copy_source_unique=False):
 
   """get source features or both(TODO)
   :param save_path:
@@ -106,12 +108,28 @@ def get_features(save_path, vocab_cls, source_path, target_path=None, delimeter=
     source_tokens = source_line.strip().split(delimeter)
     target_tokens = target_line.strip().split(delimeter)
 
-    source_tokens.append(SpecialWords.SEQUENCE_END)
-    target_tokens.insert(0, SpecialWords.SEQUENCE_START)
-    target_tokens.append(SpecialWords.SEQUENCE_END)
+    ##get raw source nlp features: words, pos, ner, tfidf
+    source_postags = NLP.Postags(source_tokens)
+    source_ners = NLP.NamedEntityRecogize(source_tokens, source_postags)
+
+    source_tokens.append(SpecialWordsIns.SEQUENCE_END)  # special id
+    source_ners.append(SpecialWordsIns.SEQUENCE_END)
+    source_postags.append(SpecialWordsIns.SEQUENCE_END)
 
     source_ids = words_to_id(source_tokens, vocab_cls)
+    source_ner_ids = [ner_cls.word2id(ner) for ner in source_ners]
+    source_pos_ids = [pos_cls.word2id(pos) for pos in source_postags]
+    source_tfidfs = tfidf_cls.encode(source_tokens)
+
+    ##get raw target nlp features: words, ner
+    target_ners = NLP.NamedEntityRecogize(target_tokens)
+    target_tokens.insert(0, SpecialWordsIns.SEQUENCE_START)
+    target_tokens.append(SpecialWordsIns.SEQUENCE_END)
+    target_ners.insert(0, SpecialWordsIns.SEQUENCE_START)
+    target_ners.append(SpecialWordsIns.SEQUENCE_END)
+
     target_ids = words_to_id(target_tokens, vocab_cls)
+    target_ner_ids = [ner_cls.word2id(ner) for ner in target_ners]
 
     extend_source_ids, source_oov_list = get_extend_source_ids(source_tokens, source_ids, vocab_cls, unique=copy_source_unique)
     source_oov_nums = len(source_oov_list)
@@ -122,8 +140,23 @@ def get_features(save_path, vocab_cls, source_path, target_path=None, delimeter=
     assert len(target_ids) == len(target_tokens)
     assert len(target_ids) == len(extend_target_ids)
 
-    keys = ["source_tokens", "source_ids", "extend_source_ids","source_oov_list","source_oov_nums","target_tokens", "target_ids", "extend_target_ids"]
-    int64_keys = ["source_ids", "extend_source_ids","source_oov_nums", "target_ids", "extend_target_ids"]
+    source_keys = [
+      "source_tokens", "source_ids", "extend_source_ids","source_oov_list","source_oov_nums",
+      "source_ner_ids", "source_pos_ids", "source_tfidfs", "source_ners", "source_postags"
+    ]
+    target_keys = [
+      "target_tokens", "target_ids", "extend_target_ids", "target_ner_ids", "target_ners"
+    ]
+
+    keys = source_keys + target_keys
+
+    # keys = ["source_tokens", "source_ids", "extend_source_ids","source_oov_list","source_oov_nums",
+    #         "target_tokens", "target_ids", "extend_target_ids"]
+
+    int64_keys = ["source_ids", "extend_source_ids","source_oov_nums","source_ner_ids", "source_pos_ids", "target_ids", "extend_target_ids", "target_ner_ids"]
+    float_keys = ["source_tfidfs"]
+    bytes_keys = ["source_ners", "source_postags","source_tokens", "source_oov_list", "target_tokens", "target_ners"]
+
     vars = locals()
     ex = tf.train.Example()
     for key in keys:
@@ -132,9 +165,16 @@ def get_features(save_path, vocab_cls, source_path, target_path=None, delimeter=
         if type(var) != list:
           var = [var]
         ex.features.feature[key].int64_list.value.extend(var)
-      else:
+      elif key in float_keys:
+        if type(var) != list:
+          var = [var]
+        ex.features.feature[key].float_list.value.extend(var)
+      elif key in bytes_keys:
         s = join_str(var).encode("utf-8")
         ex.features.feature[key].bytes_list.value.extend([s])
+      else:
+        raise ValueError("{} not in int64_keys,float_keys, bytes_keys".format(key))
+
     writer.write(ex.SerializeToString())
 
   writer.close()
@@ -153,17 +193,20 @@ def read_and_decode_single_example(filename):
   # The serialized example is converted back to actual values.
   # One needs to describe the format of the objects to be returned
 
+  source_keys_to_features = global_vars.source_feature_keys
+
+  target_keys_to_features = global_vars.target_feature_keys
+
+
   #tf.FixedLenFeature
-  features_cls = {
-    "source_ids": tf.VarLenFeature(tf.int64),
-    "source_tokens": tf.VarLenFeature(tf.string),
-    "target_ids": tf.VarLenFeature(tf.int64),
-    "target_tokens": tf.VarLenFeature(tf.string),
-    "extend_source_ids": tf.VarLenFeature(tf.int64),
-    "extend_target_ids": tf.VarLenFeature(tf.int64),
-    "source_oov_list": tf.VarLenFeature(tf.string),
-    "source_oov_nums": tf.FixedLenFeature([],tf.int64)
-  }
+  features_cls = {}
+  all_keys = set(list(source_keys_to_features.keys()) + list(target_keys_to_features.keys()))
+  for key in all_keys:
+    if key in source_keys_to_features:
+      features_cls[key] = source_keys_to_features
+    elif key in target_keys_to_features:
+      features_cls[key] = target_keys_to_features[key]
+
   features = tf.parse_single_example(
     serialized_example,
     features= features_cls)
@@ -180,9 +223,10 @@ def print_values(values, keys, np_array=True):
       v = values[key]
     if v.ndim == 0:
       v = [v]
-    if type(v[0]) != np.int64:
+    if type(v[0]) != np.int64 and type(v[0]) != np.float32:
       v = np.char.decode(v.astype("S"), "utf-8")
-      s = " ".join([x.encode("utf-8") for x in v])
+      # s = " ".join([x.encode("utf-8") for x in v])
+      s = " ".join(v)
     else:
       s = " ".join([str(x) for x in v])
     format_values[key] = v
@@ -197,27 +241,24 @@ def cli():
   pass
 
 @click.command()
-@click.argument("vocab_path")
 @click.argument("source_path")
 @click.argument("target_path")
 @click.argument("save_path")
-@click.argument("--pos_path", type=str)
-@click.argument("--ner_path", type=str)
-@click.argument("--tfidf_path", type=str)
-@click.argument("--char_path", type=str)
-def handle(vocab_path, source_path, target_path, save_path, copy_source_unique=True,
+@click.argument("vocab_path")
+@click.option("--pos_path", type=str)
+@click.option("--ner_path", type=str)
+@click.option("--tfidf_path", type=str)
+@click.option("--char_path", type=str)
+def handle(source_path, target_path, save_path, vocab_path, copy_source_unique=True,
            pos_path=None, ner_path=None, tfidf_path=None, char_path=None):
+
   word_vocab = vocab.Vocab(vocab_path)
-  char_vocab = vocab.Vocab(char_path, )
-  pos_vocab = vocab.Vocab(pos_path, special_word_ins=None)
-  ner_vocab = vocab.Vocab(ner_path, special_word_ins=None)
-  tfidf_vocab = vocab.Vocab(tfidf_path, special_word_ins=None)
-  print(word_vocab.special_vocab)
-  vocab_dict = {
-    "char_dict": char_vocab,
-    "word_dict": word_vocab
-  }
-  get_features(save_path, word_vocab, ner_vocab, tfidf_vocab,source_path, target_path,copy_source_unique=copy_source_unique)
+  # char_vocab = vocab.Vocab(char_path)
+  pos_vocab = vocab.Vocab(pos_path)
+  ner_vocab = vocab.Vocab(ner_path)
+  tfidf_vocab = NLP.Tfidf(tfidf_path, special_words=SpecialWords, default=0.0)
+
+  get_features(save_path, word_vocab, pos_vocab,  ner_vocab, tfidf_vocab , source_path, target_path, copy_source_unique=copy_source_unique)
 
 @click.command()
 @click.argument("load_path")
@@ -251,6 +292,7 @@ def load_features(load_path):
 @click.argument("load_path")
 def pipeline_debug(load_path):
   from seq2seq.data import input_pipeline
+  from seq2seq.features import global_vars
   pipeline = input_pipeline.FeaturedTFRecordInputPipeline(
     params={
       "files": [load_path],
@@ -260,11 +302,8 @@ def pipeline_debug(load_path):
   )
   data_provider = pipeline.make_data_provider()
   features = pipeline.read_from_data_provider(data_provider)
-  keys = ["source_tokens", "source_ids", "extend_source_ids", "source_oov_list", "source_oov_nums","target_tokens", "target_ids",
-          "extend_target_ids"]
 
-  # sess.run(tf.global_variables_initializer())
-  # sess.run(tf.local_variables_initializer())
+  keys = global_vars.source_feature_keys + global_vars.target_feature_keys
 
   with tf.train.MonitoredSession() as sess:
     tf.train.start_queue_runners(sess=sess)

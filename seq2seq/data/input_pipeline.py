@@ -35,6 +35,7 @@ from seq2seq.configurable import Configurable
 from seq2seq.data import split_tokens_decoder, parallel_data_provider
 from seq2seq.data.sequence_example_decoder import TFSEquenceExampleDecoder
 from seq2seq.data import featuredRecordDecoder
+from seq2seq.features import global_vars
 from seq2seq.data.featuredDataProvider import FeaturedDataProvider
 
 def make_input_pipeline_from_def(def_dict, mode, **kwargs):
@@ -303,12 +304,17 @@ class FeaturedTFRecordInputPipeline(InputPipeline):
         "source_oov_list": "source_oov_list",
         "source_oov_nums": "source_oov_nums",
         "source_ids": "source_ids",
-
         "extend_source_ids": "extend_source_ids",
+        "source_ner_ids": "source_ner_ids",
+        "source_pos_ids": "source_pos_ids",
+        "source_tfidfs": "source_tfidfs",
+
         "target_ids": "target_ids",
         "extend_target_ids": "extend_target_ids",
+        "target_ner_ids": "target_ner_ids",
         "target_tokens": "target_tokens",
         "target_len": "target_len",
+
         "source_delimiter": " ",
         "target_delimiter": " ",
     })
@@ -316,21 +322,11 @@ class FeaturedTFRecordInputPipeline(InputPipeline):
 
   def make_data_provider(self, **kwargs):
 
-    source_keys_to_features = {
-      "source_tokens": tf.VarLenFeature(tf.string),
-      "source_ids": tf.VarLenFeature(tf.int64),
-      "extend_source_ids": tf.VarLenFeature(tf.int64),
-      "source_oov_list": tf.VarLenFeature(tf.string),
-      "source_oov_nums": tf.FixedLenFeature([], tf.int64)
-    }
+    source_keys_to_features = global_vars.source_keys_to_features
 
-    target_keys_to_features = {
-      "target_tokens": tf.VarLenFeature(tf.string),
-      "target_ids": tf.VarLenFeature(tf.int64),
-      "extend_target_ids" : tf.VarLenFeature(tf.int64)
-    }
+    target_keys_to_features = global_vars.target_keys_to_features
 
-    decoder = featuredRecordDecoder.FeaturedTFExampleDecoder(source_keys_to_features,target_keys_to_features)
+    decoder = featuredRecordDecoder.FeaturedTFExampleDecoder(source_keys_to_features, target_keys_to_features)
 
     dataset = tf.contrib.slim.dataset.Dataset(
         data_sources=self.params["files"],
@@ -347,11 +343,11 @@ class FeaturedTFRecordInputPipeline(InputPipeline):
 
   @property
   def feature_keys(self):
-    return set(["source_tokens", "source_len", "extend_source_ids", "source_ids", "source_oov_nums"])
+    return set(global_vars.source_feature_keys + ["source_len"])
 
   @property
   def label_keys(self):
-    return set(["target_tokens", "target_len", "extend_target_ids", "target_ids"])
+    return set(global_vars.target_feature_keys + ["target_len"])
 
 class ImageCaptioningInputPipeline(InputPipeline):
   """An input pipeline that reads a TFRecords containing both source

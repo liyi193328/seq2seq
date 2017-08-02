@@ -8,14 +8,14 @@ import tensorflow as tf
 from collections import namedtuple
 from seq2seq.decoders import RNNDecoder
 from seq2seq.contrib.seq2seq.helper import CustomHelper
-
+from seq2seq.contrib.seq2seq.decoder import Decoder, dynamic_decode
 from seq2seq.models.seq2seq_model import Seq2SeqModel
 
 
 class CopyGenDecoderOutput(
     namedtuple("DecoderOutput", [
         "logits", "predicted_ids", "cell_output", "attention_scores",
-        "attention_context", "pgen"
+        "attention_context", "pgens"
     ])):
   pass
 
@@ -49,7 +49,7 @@ class CopyGenDecoder(RNNDecoder):
         cell_output=self.cell.output_size,
         attention_scores=tf.shape(self.attention_values)[1:-1],
         attention_context=self.attention_values.get_shape()[-1],
-        pgen= tf.shape(self.pgen)[-1]
+        pgens= tf.shape(self.pgen)[-1]
     )
 
   @property
@@ -60,7 +60,7 @@ class CopyGenDecoder(RNNDecoder):
         cell_output=tf.float32,
         attention_scores=tf.float32,
         attention_context=tf.float32,
-        pgen=tf.float32
+        pgens=tf.float32
     )
 
   def initialize(self, name=None):
@@ -116,9 +116,9 @@ class CopyGenDecoder(RNNDecoder):
         scope="logits")
 
     #generation probability
-    pgen = self.cal_gen_probability(decode_out_features)
+    pgens = self.cal_gen_probability(decode_out_features)
 
-    return softmax_input, logits, att_scores, attention_context, pgen
+    return softmax_input, logits, att_scores, attention_context, pgens
 
   def _setup(self, initial_state, helper):
 
@@ -151,7 +151,7 @@ class CopyGenDecoder(RNNDecoder):
 
   def step(self, time_, inputs, state, name=None):
     cell_output, cell_state = self.cell(inputs, state)
-    cell_output_new, logits, attention_scores, attention_context, pgen = \
+    cell_output_new, logits, attention_scores, attention_context, pgens = \
       self.compute_output(cell_output)
 
     if self.reverse_scores_lengths is not None:
@@ -170,10 +170,31 @@ class CopyGenDecoder(RNNDecoder):
         cell_output=cell_output_new,
         attention_scores=attention_scores,
         attention_context=attention_context,
-        pgen=pgen
+        pgens=pgens
     )
 
     finished, next_inputs, next_state = self.helper.next_inputs(
         time=time_, outputs=outputs, state=cell_state, sample_ids=sample_ids)
 
+    return (outputs, next_state, next_inputs, finished)
+
+  def _build(self, initial_state, helper):
+    if not self.initial_state:
+      self._setup(initial_state, helper)
+
+    scope = tf.get_variable_scope()
+    scope.set_initializer(tf.random_uniform_initializer(
+        -self.params["init_scale"],
+        self.params["init_scale"]))
+
+    maximum_iterations = None
+    if self.mode == tf.contrib.learn.ModeKeys.INFER:
+      maximum_iterations = self.params["max_decode_length"]
+
+    outputs, final_state = dynamic_decode(
+        decoder=self,
+        output_time_major=True,
+        impute_finished=False,
+        maximum_iterations=maximum_iterations)
+    return self.finalize(outputs, final_state)
 

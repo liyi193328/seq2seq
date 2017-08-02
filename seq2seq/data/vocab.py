@@ -20,7 +20,7 @@ from __future__ import division
 from __future__ import print_function
 
 """
-total vocab = special_words + actual vocab(special words first)  
+total vocab = actual vocab + special_words 
 """
 
 import codecs
@@ -45,10 +45,10 @@ class VocabInfo(
   @property
   def total_size(self):
     """Returns size the the base vocabulary plus the size of extra vocabulary"""
-    return self.vocab_size + len(self.special_vocab)
+    return self.vocab_size + len(self.special_vocab._fields)
 
 
-def get_vocab_info(vocab_path):
+def get_vocab_info(vocab_path, special_words=SpecialWords):
   """Creates a `VocabInfo` instance that contains the vocabulary size and
     the special vocabulary for the given file.
   Args:
@@ -58,9 +58,8 @@ def get_vocab_info(vocab_path):
   """
   with gfile.GFile(vocab_path) as file:
     vocab_size = sum(1 for _ in file)
-  special_vocab = get_special_vocab(vocab_size)
+  special_vocab = get_special_vocab(vocab_size, special_words=special_words)
   return VocabInfo(vocab_path, vocab_size, special_vocab)
-
 
 def get_special_vocab(vocabulary_size, special_words=SpecialWords):
   """Returns the `SpecialVocab` instance for a given vocabulary size.
@@ -163,12 +162,14 @@ def create_vocabulary_lookup_table(filename, default_value=None):
 class Vocab(object):
   """Vocabulary class for mapping between words and ids (integers)"""
 
-  def __init__(self, vocab_file, special_word_ins = SpecialWordsIns, max_size=None):
+  def __init__(self, vocab_file, special_word_ins = SpecialWordsIns, word_index=0, value_index=1, max_size=None):
     """Creates a vocab of up to max_size words, reading from the vocab_file. If max_size is 0, reads the entire vocab file.
 
     Args:
       vocab_file: path to the vocab file, which is assumed to contain "<word> <frequency>" on each line, sorted with most frequent word first. This code doesn't actually use the frequencies, though.
-      max_size: integer. The maximum size of the resulting Vocabulary."""
+      max_size: integer. The maximum size of the resulting Vocabulary.
+      value_index: the index for value([count|tfidf])
+      """
     self._vocab_file = vocab_file
     self._word_to_id = {}
     self._id_to_word = {}
@@ -184,10 +185,12 @@ class Vocab(object):
     # Read the vocab file and add words up to max_size
     with codecs.open(vocab_file, 'r', "utf-8") as vocab_f:
       for line in vocab_f:
-        pieces = line.split()
-        if len(pieces) == 2:
+        pieces = line.strip().split()
+        if len(pieces) == 0:
+          continue
+        if len(pieces) >= 2:
           have_nums = True
-          self._word_to_count[pieces[0]] = int(pieces[1])
+          self._word_to_count[pieces[word_index]] = int(pieces[value_index])
         w = pieces[0]
         if not have_nums:
           self._word_to_count[w] = -1
@@ -211,10 +214,11 @@ class Vocab(object):
     self.special_word_ins = special_word_ins
     special_vocab = get_special_vocab(self._count, special_words) #[0, len(special_words))
     self.special_vocab = special_vocab
-    print("Special words: {}".format(" ".join(special_words)))
+    print("Special words and ids:")
 
     for w in special_vocab._fields:
       self._word_to_id[w] = self._count
+      print("{}-{}".format(w, self._count))
       self._word_to_count[w] = -1
       self._id_to_word[self._count] = w
       self._count += 1
@@ -251,6 +255,7 @@ class Vocab(object):
       for i in range(self.size()):
         word = self._id_to_word[i]
         f.write(word+"\n")
+
 
 
 if __name__ == "__main__":
