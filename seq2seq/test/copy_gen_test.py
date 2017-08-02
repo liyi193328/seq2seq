@@ -84,6 +84,24 @@ def test_model(source_path, target_path, vocab_path):
 
   return model, fetches_
 
+TEST_PARAMS = yaml.load("""
+embedding.dim: 5
+encoder.params:
+  rnn_cell:
+    dropout_input_keep_prob: 0.8
+    num_layers: 2
+    residual_connections: True,
+    cell_class: LSTMCell
+    cell_params:
+      num_units: 4
+decoder.params:
+  rnn_cell:
+    num_layers: 2
+    cell_class: LSTMCell
+    cell_params:
+      num_units: 4
+""")
+
 def test_copy_gen_model(record_path, vocab_path=None):
 
   tf.logging.set_verbosity(tf.logging.INFO)
@@ -94,11 +112,14 @@ def test_copy_gen_model(record_path, vocab_path=None):
   # Build model graph
   mode = tf.contrib.learn.ModeKeys.TRAIN
   params_ = CopyGenSeq2Seq.default_params().copy()
+  params_.update(TEST_PARAMS)
   params_.update({
       "vocab_source": vocab_path,
       "vocab_target": vocab_path,
     }
   )
+  print(params_)
+
   model = CopyGenSeq2Seq( params = params_, mode = mode, vocab_instance=vocab)
 
   tf.logging.info(vocab_path)
@@ -124,6 +145,7 @@ def test_copy_gen_model(record_path, vocab_path=None):
     with tf.contrib.slim.queues.QueueRunners(sess):
       # sess = tf_debug.LocalCLIDebugWrapperSession(sess)
       fetches_ = sess.run(fetches)
+      print("yes")
 
   return model, fetches_
 

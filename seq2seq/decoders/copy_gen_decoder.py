@@ -9,8 +9,6 @@ from collections import namedtuple
 from seq2seq.decoders import RNNDecoder
 from seq2seq.contrib.seq2seq.helper import CustomHelper
 from seq2seq.contrib.seq2seq.decoder import Decoder, dynamic_decode
-from seq2seq.models.seq2seq_model import Seq2SeqModel
-
 
 class CopyGenDecoderOutput(
     namedtuple("DecoderOutput", [
@@ -32,7 +30,7 @@ class CopyGenDecoder(RNNDecoder):
                source_embedding=None,
                reverse_scores_lengths=None,
                name="CopyGenDecoder"):
-    super(CopyGenDecoder, RNNDecoder).__init__(params, mode, name)
+    super(CopyGenDecoder, self).__init__(params, mode, name)
     self.vocab_size = vocab_size
     self.source_embedding = source_embedding
     self.attention_keys = attention_keys
@@ -49,7 +47,7 @@ class CopyGenDecoder(RNNDecoder):
         cell_output=self.cell.output_size,
         attention_scores=tf.shape(self.attention_values)[1:-1],
         attention_context=self.attention_values.get_shape()[-1],
-        pgens= tf.shape(self.pgen)[-1]
+        pgens= tf.TensorShape([1])
     )
 
   @property
@@ -125,7 +123,7 @@ class CopyGenDecoder(RNNDecoder):
     self.initial_state = initial_state
 
     self.W_u = 0
-    wout_dim = 2 * self.params["decoder.params"]["rnn_cell"]["cell_params"]["num_units"]  # dim(context_vector + hidden states)
+    # wout_dim = 2 * self.params["decoder.params"]["rnn_cell"]["cell_params"]["num_units"]  # dim(context_vector + hidden states)
     # word_dim = self.source_embedding.shape[1].value
     # with tf.variable_scope("copy_gen_project_wout"):
     #   self.wout_proj = tf.get_variable("project_wout", shape=[word_dim, word_dim], dtype=tf.float32, initializer=tf.truncated_normal_initializer)

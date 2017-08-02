@@ -52,7 +52,7 @@ class CopyGenSeq2Seq(AttentionSeq2Seq):
         "bridge.class": "seq2seq.models.bridges.ZeroBridge",
         "encoder.class": "seq2seq.encoders.BidirectionalRNNEncoder",
         "encoder.params": {},  # Arbitrary parameters for the encoder
-        "decoder.class": "seq2seq.decoders.AttentionDecoder",
+        "decoder.class": "seq2seq.decoders.CopyGenDecoder",
         "decoder.params": {}  # Arbitrary parameters for the decoder
     })
     return params
@@ -262,15 +262,16 @@ class CopyGenSeq2Seq(AttentionSeq2Seq):
 
     vocab_dists = decoder_output.logits
     attn_dists = decoder_output.attention_scores
-    p_gens = decoder_output.p_gens
+    p_gens = decoder_output.pgens
+
+    vocab_total_size = self.source_vocab_info.total_size
+
+    max_t = tf.shape(vocab_dists)[0]
+    batch_size = vocab_dists.get_shape().as_list()[1] or tf.shape(vocab_dists)[1]
     batch_source_max_oovs = tf.reduce_max(features["source_oov_nums"])
-    vocab_total_size = self.source_vocab_info.vocab_size
-
-    max_t = vocab_dists.size()
-    batch_size = tf.shape(vocab_dists.read(0))[0]
-
-    tf.assert_equal(vocab_dists.size(), attn_dists.size())
-    tf.assert_equal(vocab_dists.size(), p_gens.size())
+    extended_vsize = vocab_total_size + batch_source_max_oovs
+    tf.assert_equal(tf.shape(vocab_dists)[0], tf.shape(attn_dists)[0])
+    tf.assert_equal(tf.shape(vocab_dists)[0], tf.shape(p_gens)[0])
 
     final_dists = tf.TensorArray(tf.float32, size=max_t, dynamic_size=True)
 
@@ -279,20 +280,22 @@ class CopyGenSeq2Seq(AttentionSeq2Seq):
       def should_continue(now_t, max_t, *args, **kwargs):
         return tf.less(now_t, max_t)
 
-      def body(t, final_dists):
-        p_gen = p_gens.read(t)
-        vocab_dist = vocab_dists.read(t)
-        attn_dist = attn_dists.read(t)
+      def body(t, max_t, final_dists, *args, **kwargs):
+        # p_gen = tf.gather(p_gens, t)
+        # vocab_dist = tf.gather(vocab_dists, t)
+        # attn_dist = tf.gather(attn_dists, t)
+        p_gen = p_gens[t,:]
+        vocab_dist = vocab_dists[t, :, :]
+        attn_dist = attn_dists[t, :, :]
         vocab_dist, attn_dist = p_gen * vocab_dist , (1-p_gen) * attn_dist
-        extended_vsize = vocab_total_size + batch_source_max_oovs
         zeros_shape = tf.convert_to_tensor((batch_size, batch_source_max_oovs))
         extra_zeros = tf.zeros(zeros_shape)
         vocab_dist_extended = tf.concat(axis=1, values=[vocab_dist, extra_zeros]) #[b, origin_total_vocab_size + extend_vocab_size]
-        batch_nums = tf.range(0, limit=batch_size)
+        batch_nums = tf.range(0, limit=batch_size, dtype=tf.int32)
         batch_nums = tf.expand_dims(batch_nums, 1)
         attn_len = tf.shape(features["source_ids"])[1]
         batch_nums =  tf.tile(batch_nums, [1, attn_len])
-        indices = tf.stack((batch_nums, features["extend_source_ids"]), axis=2)
+        indices = tf.stack( ( batch_nums, tf.to_int32(features["extend_source_ids"]) ), axis=2)
         final_shapes = [batch_size, extended_vsize]
         #place attend score to corresponding id(extend): total_vocab is 10, extend_source_ids=[1,11, 12, 11, 3], attn_scores=[0.1, 0.2, 0.4, 0.25, 0.05]
         #place the 1's score 0.1 to 1th index value, index 11th value is 0.2,..., the same word id 's properbility is summed
@@ -301,13 +304,13 @@ class CopyGenSeq2Seq(AttentionSeq2Seq):
         #avoid nan
         final_dist += tf.float32.min
         final_dists = final_dists.write(t, final_dist)
-        return t+1, final_dists
+        return t+1, max_t, final_dists
 
       now_t = tf.constant(0)
-      _, final_dists = tf.while_loop(
+      _, _, final_dists = tf.while_loop(
         should_continue,
         body,
-        loop_vars=[now_t, final_dists]
+        loop_vars=[now_t, max_t, final_dists]
       )
       return final_dists
 
@@ -323,7 +326,6 @@ class CopyGenSeq2Seq(AttentionSeq2Seq):
 
     final_dists = self._calc_final_dist(decoder_output, _features)
     final_dists = final_dists.stack() #
-    fina_logits = final_dists
 
     # losses = seq2seq_losses.cross_entropy_sequence_loss(
     #     logits=decoder_output.logits[:, :, :],
@@ -331,8 +333,8 @@ class CopyGenSeq2Seq(AttentionSeq2Seq):
     #     sequence_length=labels["target_len"] - 1)
 
     losses = seq2seq_losses.cross_entropy_sequence_loss(
-        logits=fina_logits,
-        targets=tf.transpose(labels["target_extend_ids"][:, 1:], [1, 0]),
+        logits=final_dists,
+        targets=tf.transpose(labels["extend_target_ids"][:, 1:], [1, 0]),
         sequence_length=labels["target_len"] - 1)
 
     # Calculate the average log perplexity

@@ -19,6 +19,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import seq2seq
 from seq2seq.graph_module import GraphModule
 
 from seq2seq import contrib
