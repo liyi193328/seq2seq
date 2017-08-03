@@ -88,7 +88,7 @@ class FeaturedTFExampleDecoder(data_decoder.DataDecoder):
           example[k] = array_ops.reshape(example[k], v.shape)
         if isinstance(example[k], tf.SparseTensor):
           example[k] = example[k].values
-        if example[k].dtype is not tf.int64:
+        if example[k].dtype is not tf.int64 and example[k].dtype is not tf.float32:
           tokens = tf.string_split(example[k], delimiter=" ").values
           features[k] = tokens
         else:

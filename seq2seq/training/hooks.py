@@ -204,6 +204,7 @@ class TrainSampleHook(TrainingHook):
     self._iter_count = 0
     self._global_step = tf.train.get_global_step()
     self._pred_dict = graph_utils.get_dict_from_collection("predictions")
+    os.umask(0)
     # Create the sample directory
     if self._sample_dir is not None:
       gfile.MakeDirs(self._sample_dir)
@@ -248,8 +249,9 @@ class TrainSampleHook(TrainingHook):
     if self._sample_dir:
       filepath = os.path.join(self._sample_dir,
                               "samples_{:06d}.txt".format(step))
-      with gfile.GFile(filepath, "w") as file:
-        file.write(result_str)
+      os.umask(0)
+      # with gfile.GFile(filepath, "w") as file:
+      #   file.write(result_str)
     self._timer.update_last_triggered_step(self._iter_count - 1)
 
 
@@ -446,7 +448,9 @@ class EvaluationSaveSampleHook(EvalutionHook):
     self._current_global_step = None
     # Create the sample directory
     if self._evalution_result_dir is not None:
-      gfile.MakeDirs(self._evalution_result_dir)
+      if os.path.exists(self._evalution_result_dir) is False:
+        gfile.MakeDirs(self._evalution_result_dir)
+        os.chmod(self._evalution_result_dir, 777)
 
   def before_run(self, _run_context):
     tf.logging.info("eval {}_th batch start...".format(self._iter_count))

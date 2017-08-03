@@ -5,6 +5,8 @@ import codecs
 import json
 import glob
 import six
+import click
+
 
 def get_dir_or_file_path(dir_or_path, max_deep=1):
   if os.path.exists(dir_or_path) == False:

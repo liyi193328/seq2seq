@@ -6,13 +6,16 @@ import codecs
 import sys
 import six
 import pyltp
-import utils
+
 import math
 
 from pyltp import Segmentor
 from pyltp import SentenceSplitter
 from pyltp import Postagger
 from pyltp import NamedEntityRecognizer
+
+import seq2seq.features.utils as utils
+from seq2seq.features import SpecialWords
 
 HOME_PATH = os.path.expanduser("~")
 default_ltp_data_path = os.path.join(HOME_PATH, "software/LTP/ltp_data")
@@ -79,6 +82,36 @@ def get_all_ner_tag(file_path, save_path):
 
 class Tfidf(object):
 
+  def __init__(self, path, word_index=0, value_index=2, special_words=SpecialWords, default=0.0):
+
+    self._path = path
+    f = codecs.open(path, "r", "utf-8")
+    self._word2value = {}
+
+    for word in special_words:
+      self._word2value[word] = default
+
+    for line in f:
+      cells = line.strip().split("\t")
+      try:
+        word = cells[word_index]
+        value = cells[value_index]
+        self._word2value[word] = float(value)
+      except IndexError:
+        continue
+
+  def get(self, word, default=0.0):
+    if word not in self._word2value:
+      return default
+    return self._word2value[word]
+
+  def encode(self, words, default=0.0):
+    ans = [self.get(word, default=0.0) for word in words]
+    return ans
+
+
+class Tfidf_online(object):
+
   def __init__(self, path_or_dir):
     self._paths = utils.get_dir_or_file_path(path_or_dir)
     doc_word_cnts = []
@@ -132,7 +165,8 @@ class Tfidf(object):
     return value_list
 
 if __name__ == "__main__":
-  # words = ['朴槿惠','被' ,'调查','了']
+  words = ['朴槿惠','被' ,'调查','了', "END"]
   # print(NamedEntityRecogize(words))
-  get_all_ner_tag("/home/bigdata/active_project/run_tasks/query_rewrite/debug/data/train/sources.txt", "/home/bigdata/nlp_data/ner_tags.txt")
-
+  # get_all_ner_tag("/home/bigdata/active_project/run_tasks/query_rewrite/debug/data/train/sources.txt", "/home/bigdata/nlp_data/ner_tags.txt")
+  print(Postags(words))
+  print(NamedEntityRecogize(words))

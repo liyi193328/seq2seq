@@ -37,6 +37,7 @@ class Seq2SeqModel(ModelBase):
   """
 
   def __init__(self, params, mode, name):
+
     super(Seq2SeqModel, self).__init__(params, mode, name)
 
     self._source_embedding = None
@@ -44,12 +45,19 @@ class Seq2SeqModel(ModelBase):
     self._target_embedding = None
     self._target_emb_scope = None
     self.source_vocab_info = None
+
     if "vocab_source" in self.params and self.params["vocab_source"]:
       self.source_vocab_info = vocab.get_vocab_info(self.params["vocab_source"])
+    if "pos_source" in self.params and self.params["pos_source"]:
+      self.source_pos_info = vocab.get_vocab_info(self.params["pos_source"])
+    if "ner_source" in self.params and self.params["ner_source"]:
+      self.source_ner_info = vocab.get_vocab_info(self.params["ner_source"])
 
     self.target_vocab_info = None
     if "vocab_target" in self.params and self.params["vocab_target"]:
       self.target_vocab_info = vocab.get_vocab_info(self.params["vocab_target"])
+    if "ner_target" in self.params and self.params["ner_target"]:
+      self.target_ner_info = vocab.get_vocab_info(self.params["ner_target"])
 
   @staticmethod
   def default_params():
@@ -261,8 +269,7 @@ class Seq2SeqModel(ModelBase):
                                           self.params["source.max_seq_len"])
 
     # Look up the source ids in the vocabulary
-    features["source_ids"] = source_vocab_to_id.lookup(features[
-        "source_tokens"])
+    features["source_ids"] = source_vocab_to_id.lookup(features["source_tokens"])
 
     # Maybe reverse the source
     if self.params["source.reverse"] is True:

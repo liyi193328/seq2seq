@@ -144,6 +144,7 @@ tf.logging.set_verbosity(tf.logging.DEBUG)
 
 tf.logging.info("cuda visable device:{}".format(os.environ.get("CUDA_VISIBLE_DEVICES", None)))
 
+os.umask(0)
 
 def Is_chief(config):
     if config.task_id == 0 and os.environ.get("environment","local") == run_config.Environment.CLOUD:

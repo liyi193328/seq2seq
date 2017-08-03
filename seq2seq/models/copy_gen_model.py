@@ -52,7 +52,7 @@ class CopyGenSeq2Seq(AttentionSeq2Seq):
         "bridge.class": "seq2seq.models.bridges.ZeroBridge",
         "encoder.class": "seq2seq.encoders.BidirectionalRNNEncoder",
         "encoder.params": {},  # Arbitrary parameters for the encoder
-        "decoder.class": "seq2seq.decoders.AttentionDecoder",
+        "decoder.class": "seq2seq.decoders.CopyGenDecoder",
         "decoder.params": {}  # Arbitrary parameters for the decoder
     })
     return params
@@ -94,17 +94,9 @@ class CopyGenSeq2Seq(AttentionSeq2Seq):
     self.create_lookup_table()
 
     # int64_keys = ["source_len", "source_ids", "extend_source_ids", "source_oov_nums", "target_ids", "extend_target_ids"]
-    # for key in int64_keys:
-    #   if key in features:
-    #     if features[key].dtype is not tf.int32:
-    #       features[key] = tf.string_to_number(features[key], tf.float32)
-    #       features[key] = tf.to_int64(features[key])
-    #   if labels is not None and key in labels:
-    #     if labels[key].dtype is not tf.int32:
-    #       labels[key] = tf.string_to_number(labels[key], tf.float32)
-    #       labels[key] = tf.to_int64(labels[key])
 
     # Slice source to max_len
+    ###here can't
     if self.params["source.max_seq_len"] is not None:
       features["source_tokens"] = features["source_tokens"][:, :self.params[
           "source.max_seq_len"]]
@@ -116,14 +108,13 @@ class CopyGenSeq2Seq(AttentionSeq2Seq):
     graph_source_ids = self._source_vocab_to_id.lookup(features["source_tokens"]) #every sequence contains sequence end flag
     tf.assert_equal(graph_source_ids, features["source_ids"])
 
-    features["source_oov_nums"] = tf.cast(features["source_oov_nums"], tf.int64)
+    features["source_oov_nums"] = tf.cast(features["source_oov_nums"], tf.int32)
     features["source_max_oov_num"] = tf.reduce_max(features["source_oov_nums"])
-
-    # features["source_ids"] = tf.Print(features["source_ids"], [ features["source_ids"] ], message="source_ids", summarize=10)
 
     # Maybe reverse the source
     if self.params["source.reverse"] is True:
-      reverse_keys = ["source_ids", "extend_source_ids"]
+      raise NotImplemented("reverse func is not stable now")
+      reverse_keys = ["source_ids", "extend_source_ids", "source_pos_ids", "source_tfidfs", "source_ner_ids"]
       for key in reverse_keys:
         features[key] = tf.reverse_sequence(
             input=features[key],
@@ -132,7 +123,7 @@ class CopyGenSeq2Seq(AttentionSeq2Seq):
             batch_dim=0,
             name=None)
 
-    features["source_len"] = tf.cast(features["source_len"], tf.int64)
+    features["source_len"] = tf.cast(features["source_len"], tf.int32)
 
     tf.summary.histogram("source_len", features["source_len"])
     tf.summary.histogram("source_oov_nums", features["source_oov_nums"])
@@ -154,13 +145,13 @@ class CopyGenSeq2Seq(AttentionSeq2Seq):
     graph_target_ids = self._target_vocab_to_id.lookup(labels["target_tokens"])
     tf.assert_equal(graph_target_ids, labels["target_ids"])
 
-    labels["target_len"] = tf.to_int64(labels["target_len"])
+    labels["target_len"] = tf.to_int32(labels["target_len"])
     tf.summary.histogram("target_len", tf.to_float(labels["target_len"]))
 
     # Keep track of the number of processed tokens
     num_tokens = tf.reduce_sum(labels["target_len"])
     num_tokens += tf.reduce_sum(features["source_len"])
-    token_counter_var = tf.Variable(0, "tokens_counter")
+    token_counter_var = tf.Variable(0, "tokens_counter", dtype=tf.int32)
     total_tokens = tf.assign_add(token_counter_var, num_tokens)
     tf.summary.scalar("num_tokens", total_tokens)
 
@@ -202,10 +193,11 @@ class CopyGenSeq2Seq(AttentionSeq2Seq):
 
   @templatemethod("encode")
   def encode(self, features, labels):
-    source_embedded = tf.nn.embedding_lookup(self.source_embedding,
+    source_word_embedded = tf.nn.embedding_lookup(self.source_embedding,
                                              features["source_ids"])
+
     encoder_fn = self.encoder_class(self.params["encoder.params"], self.mode)
-    return encoder_fn(source_embedded, features["source_len"])
+    return encoder_fn(source_word_embedded, features["source_len"])
 
   @templatemethod("decode")
   def decode(self, encoder_output, features, labels):
@@ -257,6 +249,70 @@ class CopyGenSeq2Seq(AttentionSeq2Seq):
     decoder_initial_state = bridge()
     return decoder(decoder_initial_state, helper_infer)
 
+  def _calc_final_dist(self, decoder_output, features):
+    """Calculate the final distribution, for the pointer-generator model
+
+    Args:
+      vocab_dists: The vocabulary distributions. List length max_dec_steps of (batch_size, vsize) arrays. The words are in the order they appear in the vocabulary file.
+      attn_dists: The attention distributions. List length max_dec_steps of (batch_size, attn_len) arrays
+
+    Returns:
+      final_dists: The final distributions. List length max-dec_steps of (batch_size, extended_vsize) arrays.
+    """
+
+    vocab_dists = decoder_output.logits
+    attn_dists = decoder_output.attention_scores
+    p_gens = decoder_output.pgens
+
+    vocab_total_size = self.source_vocab_info.total_size
+
+    max_t = tf.shape(vocab_dists)[0]
+    batch_size = vocab_dists.get_shape().as_list()[1] or tf.shape(vocab_dists)[1]
+    batch_source_max_oovs = tf.reduce_max(features["source_oov_nums"])
+    extended_vsize = vocab_total_size + batch_source_max_oovs
+    tf.assert_equal(tf.shape(vocab_dists)[0], tf.shape(attn_dists)[0])
+    tf.assert_equal(tf.shape(vocab_dists)[0], tf.shape(p_gens)[0])
+
+    final_dists = tf.TensorArray(tf.float32, size=max_t, dynamic_size=True)
+
+    with tf.variable_scope('final_distribution'):
+
+      def should_continue(now_t, max_t, *args, **kwargs):
+        return tf.less(now_t, max_t)
+
+      def body(t, max_t, final_dists, *args, **kwargs):
+        # p_gen = tf.gather(p_gens, t)
+        # vocab_dist = tf.gather(vocab_dists, t)
+        # attn_dist = tf.gather(attn_dists, t)
+        p_gen = p_gens[t,:]
+        vocab_dist = vocab_dists[t, :, :]
+        attn_dist = attn_dists[t, :, :]
+        vocab_dist, attn_dist = p_gen * vocab_dist , (1-p_gen) * attn_dist
+        zeros_shape = tf.convert_to_tensor((batch_size, batch_source_max_oovs))
+        extra_zeros = tf.zeros(zeros_shape)
+        vocab_dist_extended = tf.concat(axis=1, values=[vocab_dist, extra_zeros]) #[b, origin_total_vocab_size + extend_vocab_size]
+        batch_nums = tf.range(0, limit=batch_size, dtype=tf.int32)
+        batch_nums = tf.expand_dims(batch_nums, 1)
+        attn_len = tf.shape(features["source_ids"])[1]
+        batch_nums =  tf.tile(batch_nums, [1, attn_len])
+        indices = tf.stack( ( batch_nums, tf.to_int32(features["extend_source_ids"]) ), axis=2)
+        final_shapes = [batch_size, extended_vsize]
+        #place attend score to corresponding id(extend): total_vocab is 10, extend_source_ids=[1,11, 12, 11, 3], attn_scores=[0.1, 0.2, 0.4, 0.25, 0.05]
+        #place the 1's score 0.1 to 1th index value, index 11th value is 0.2,..., the same word id 's properbility is summed
+        attn_dist_projected = tf.scatter_nd(indices, attn_dist, final_shapes)
+        final_dist = attn_dist_projected + vocab_dist_extended #add copy(attn) score to
+        #avoid nan
+        final_dist += tf.float32.min
+        final_dists = final_dists.write(t, final_dist)
+        return t+1, max_t, final_dists
+
+      now_t = tf.constant(0)
+      _, _, final_dists = tf.while_loop(
+        should_continue,
+        body,
+        loop_vars=[now_t, max_t, final_dists]
+      )
+      return final_dists
 
   def compute_loss(self, decoder_output, _features, labels):
     """Computes the loss for this model.
@@ -266,9 +322,19 @@ class CopyGenSeq2Seq(AttentionSeq2Seq):
     """
     #pylint: disable=R0201
     # Calculate loss per example-timestep of shape [B, T]
+
+
+    final_dists = self._calc_final_dist(decoder_output, _features)
+    final_dists = final_dists.stack() #
+
+    # losses = seq2seq_losses.cross_entropy_sequence_loss(
+    #     logits=decoder_output.logits[:, :, :],
+    #     targets=tf.transpose(labels["target_ids"][:, 1:], [1, 0]),
+    #     sequence_length=labels["target_len"] - 1)
+
     losses = seq2seq_losses.cross_entropy_sequence_loss(
-        logits=decoder_output.logits[:, :, :],
-        targets=tf.transpose(labels["target_ids"][:, 1:], [1, 0]),
+        logits=final_dists,
+        targets=tf.transpose(labels["extend_target_ids"][:, 1:], [1, 0]),
         sequence_length=labels["target_len"] - 1)
 
     # Calculate the average log perplexity
@@ -289,9 +355,10 @@ class CopyGenSeq2Seq(AttentionSeq2Seq):
           decoder_output=decoder_output, features=features, labels=labels)
       loss = None
       train_op = None
-    else:
-      losses, loss = self.compute_loss(decoder_output, features, labels)
 
+    else:
+
+      losses, loss = self.compute_loss(decoder_output, features, labels)
       train_op = None
       if self.mode == tf.contrib.learn.ModeKeys.TRAIN:
         train_op = self._build_train_op(loss)
