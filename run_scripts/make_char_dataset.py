@@ -18,6 +18,13 @@ import utils
 def cli():
   pass
 
+@click.command("convert_dir")
+@click.argument("source_dir")
+@click.argument("write_dir")
+def convert_dir(source_dir, write_dir):
+  if os.path.exists(write_dir) == False:
+    os.makedirs(write_dirs)
+  for root,
 @click.command("convert")
 @click.argument("token_file")
 @click.argument("save_path")
