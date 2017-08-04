@@ -10,11 +10,9 @@ import multiprocessing as MP
 from pyltp import Segmentor
 from pyltp import SentenceSplitter
 
-# if "LTP_DATA_DIR" not in os.environ:
-#   print("must set LTP_DATA_DIR environment")
-#   sys.exit(-1)
-
-LTP_DATA_DIR = os.environ.get("LTP_DATA_DIR", "/home/bigdata/software/LTP/ltp_data")
+HOME_PATH = os.path.expanduser("~")
+default_ltp_data_path = os.path.join(HOME_PATH, "software/LTP/ltp_data")
+LTP_DATA_DIR = os.environ.get("LTP_DATA_DIR", default_ltp_data_path)
 cws_model_path = os.path.join(LTP_DATA_DIR, 'cws.model')
 segmentor = Segmentor()  # 初始化实例
 segmentor.load(cws_model_path)  # 加载模型
