@@ -18,17 +18,22 @@ import utils
 def cli():
   pass
 
-@click.command("convert_dir")
-@click.argument("source_dir")
-@click.argument("write_dir")
-def convert_dir(source_dir, write_dir):
-  if os.path.exists(write_dir) == False:
-    os.makedirs(write_dirs)
-  for root,
 @click.command("convert")
-@click.argument("token_file")
-@click.argument("save_path")
+@click.argument("source_dir_or_path")
+@click.argument("write_dir_or_path")
+def convert_dir_or_path(source_dir_or_path, write_dir_or_path):
+  assert source_dir_or_path != write_dir_or_path, (source_dir_or_path, write_dir_or_path)
+  if os.path.isdir(source_dir_or_path):
+    if os.path.exists(write_dir_or_path) == False:
+      os.makedirs(write_dir_or_path)
+    path_pairs = utils.get_recur_file_paths(source_dir_or_path, write_dir_or_path, dir_pattern_list=["train", "dev", "test"])
+    for source_path, target_path in path_pairs:
+      convert_token_file_to_char(source_path, target_path)
+  else:
+    convert_token_file_to_char(source_dir_or_path, write_dir_or_path)
+
 def convert_token_file_to_char(token_file, save_path, delimetor=" "):
+  print("converting {} to char format {}".format(token_file, save_path))
   fin = codecs.open(token_file, "r", "utf-8")
   fout = codecs.open(save_path, "w", "utf-8")
   for line in fin:
@@ -67,7 +72,7 @@ def get_char_vocab(source_path_or_dir, char_vocab_path):
     fout.write(s + "\n")
   fout.close()
 
-cli.add_command(convert_token_file_to_char)
+cli.add_command(convert_dir_or_path)
 cli.add_command(get_char_vocab)
 
 if __name__ == "__main__":

@@ -14,6 +14,24 @@ def get_dir_or_file_path(dir_or_path, max_deep=1):
     all_paths = glob.glob(dir_or_path)
   return all_paths
 
+def get_recur_file_paths(d, new_dir=None, dir_pattern_list=None):
+  file_paths = []
+  for root, sub_dirs, filenames in os.walk(d):
+    if new_dir is not None:
+      relDir = os.path.join(root, os.path.relpath(new_dir, root) )
+      if os.path.exists(relDir) is False:
+        os.makedirs(relDir)
+    else:
+      relDir = root
+    for filename in filenames:
+      or_file_path = os.path.join(root, filename)
+      file_path = os.path.join(relDir, filename )
+      file_paths.append( (or_file_path, file_path) )
+    for sub_dir in sub_dirs:
+      if dir_pattern_list is not None and sub_dir not in dir_pattern_list:
+        sub_dirs.remove(sub_dir)
+  return file_paths
+
 def jsonRead(file_path):
   with codecs.open(file_path, "r", "utf-8") as f:
     return json.load(f)
