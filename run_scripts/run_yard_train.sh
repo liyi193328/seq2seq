@@ -100,7 +100,7 @@ python -m bin.train \
   --config_paths="
       $CONFIG_DIR/nmt_small.yml,
       $CONFIG_DIR/train_seq2seq.yml,
-      $CONFIG_DIR/text_metrics_bpe.yml" \
+      $CONFIG_DIR/text_metrics_slice_text.yml" \
   $1 \
   $2 \
   $3 \
