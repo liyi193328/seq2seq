@@ -7,9 +7,10 @@ import subprocess
 import rouge
 import json
 import click
+import tempfile
 from collections import OrderedDict
 
-def get_bleu_info(source_path, pred_path):
+def get_bleu_info(ref_path, pred_path):
 
   print("######cal belu######")
   metrics_dir = os.path.dirname(os.path.realpath(__file__))
@@ -20,7 +21,7 @@ def get_bleu_info(source_path, pred_path):
   # Calculate BLEU using multi-bleu script
   with codecs.open(pred_path, "r", "utf-8") as read_pred:
     bleu_cmd = [multi_bleu_path]
-    bleu_cmd += [source_path]
+    bleu_cmd += [ref_path]
     try:
       bleu_out = subprocess.check_output(
           bleu_cmd, stdin=read_pred, stderr=subprocess.STDOUT)
@@ -37,10 +38,10 @@ def get_bleu_info(source_path, pred_path):
   print("#############end bleu#########\n")
   return bleu_out
 
-def get_rouge(source_path, pred_path):
+def get_rouge(ref_path, pred_path):
   """Evaluate the files in ref_dir and dec_dir with pyrouge, returning results_dict"""
   print("###########cal rouge###############")
-  source_lines = [line.strip() for line in codecs.open(source_path, "r", "utf-8").readlines()]
+  source_lines = [line.strip() for line in codecs.open(ref_path, "r", "utf-8").readlines()]
   pred_lines = [ pred.strip() for pred in codecs.open(pred_path, "r", "utf-8").readlines() ]
   assert len(source_lines) == len(pred_lines)
   rou = rouge.Rouge()
@@ -53,14 +54,63 @@ def get_rouge(source_path, pred_path):
   print("############end rouge#############\n")
   return result
 
+def copy_model_post_fn(line):
+  """unique sentence end !!!! => !
+  :param line: 
+  :return: 
+  """
+  tokens = line.strip().split(" ")
+  if len(tokens) == 0:
+    return ""
+  else:
+    last_token = tokens[-1]
+    new_last_token = []
+    char_set = set()
+    for char in last_token:
+      if char not in new_last_token:
+        new_last_token.append(char)
+    new_last_token = "".join(new_last_token)
+    tokens[-1] = new_last_token
+  return " ".join(tokens)
+
 @click.command()
-@click.argument("source_path")
 @click.argument("pred_path")
+@click.argument("ref_path")
+@click.argument("format")
 @click.argument("result_path")
-def main(source_path, pred_path, result_path):
+def main(pred_path, ref_path, format, result_path):
   logging.warn("source_path and pred_path must with line one by one")
-  bleu_out = get_bleu_info(source_path, pred_path)
-  rouge_score = get_rouge(source_path, pred_path)
+  pred_post_name = os.path.basename(pred_path).split(".")[0] + ".extract.pred"
+  extract_pred_path = os.path.join(os.path.join(os.path.dirname(pred_path), pred_post_name))
+  pred_fout = codecs.open(extract_pred_path, "w", "utf-8")
+  fin = codecs.open(pred_path, "r", "utf-8")
+  if format == "source_beam_search":
+    while True:
+      line = fin.readline()
+      if not line:
+        break
+      beam_search_lines = []
+      while True:
+        b = fin.readline()
+        if b == "" or b.strip() == "":
+          break
+        beam_search_lines.append(b)
+      assert len(beam_search_lines) > 0, (line,beam_search_lines)
+      pred_fout.write(beam_search_lines[0])
+  elif format == "copy_pred":
+    while True:
+      line = fin.readline()
+      new_line = copy_model_post_fn(line)
+      pred_fout.write(new_line.strip() + "\n")
+  else:
+    pred_fout.close()
+    fin.close()
+    raise ValueError("{} not in copy")
+  pred_fout.close()
+  fin.close()
+  print("pred extract from {} to {}".format(pred_path, extract_pred_path))
+  bleu_out = get_bleu_info(ref_path, extract_pred_path)
+  rouge_score = get_rouge(ref_path, extract_pred_path)
   result = {}
   result["bleu"] = bleu_out
   result["rouge"] = rouge_score
