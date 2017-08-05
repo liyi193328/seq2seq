@@ -88,7 +88,6 @@ def main(pred_path, ref_path, format, result_path):
   all_result_fout = codecs.open(all_result_path, "w", "utf-8")
   fin = codecs.open(pred_path, "r", "utf-8")
   ref_fin = codecs.open(ref_path, "r", "utf-8")
-  all_fout = codecs.open(all_result_path, "w", "utf-8")
   if format == "source_beam_search":
     while True:
       line = fin.readline()
