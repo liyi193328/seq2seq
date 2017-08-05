@@ -88,7 +88,7 @@ def main(pred_path, ref_path, format, result_path):
   all_result_fout = codecs.open(all_result_path, "w", "utf-8")
   fin = codecs.open(pred_path, "r", "utf-8")
   ref_fin = codecs.open(ref_path, "r", "utf-8")
-  all_fout = codecs.open()
+  all_fout = codecs.open(all_result_path, "w", "utf-8")
   if format == "source_beam_search":
     while True:
       line = fin.readline()
@@ -125,6 +125,7 @@ def main(pred_path, ref_path, format, result_path):
   fin.close()
   all_result_fout.close()
   print("pred extract from {} to {}".format(pred_path, extract_pred_path))
+  print("source pred[post] write to {}".format(all_result_path))
   bleu_out = get_bleu_info(ref_path, extract_pred_path)
   rouge_score = get_rouge(ref_path, extract_pred_path)
   result = {}
