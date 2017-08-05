@@ -46,6 +46,7 @@ class BasicSeq2Seq(Seq2SeqModel):
     super(BasicSeq2Seq, self).__init__(params, mode, name)
     self.encoder_class = locate(self.params["encoder.class"])
     self.decoder_class = locate(self.params["decoder.class"])
+    if "decoder_"
 
   @staticmethod
   def default_params():
@@ -56,7 +57,9 @@ class BasicSeq2Seq(Seq2SeqModel):
         "encoder.class": "seq2seq.encoders.UnidirectionalRNNEncoder",
         "encoder.params": {},  # Arbitrary parameters for the encoder
         "decoder.class": "seq2seq.decoders.BasicDecoder",
-        "decoder.params": {}  # Arbitrary parameters for the decoder
+        "decoder.params": {},  # Arbitrary parameters for the decoder
+        "decoder_helper.class": "seq2seq.contrib.seq2seq.helper.TrainingHelper",
+        "decoder_helper.params": {}
     })
     return params
 
