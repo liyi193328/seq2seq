@@ -92,7 +92,7 @@ def main(pred_path, ref_path, format, result_path):
     while True:
       line = fin.readline()
       ref_line = ref_fin.readline()
-      all_result_fout.write("source:\n{}\nref:{}\npred:".format(line.strip(), ref_line.strip()))
+      all_result_fout.write("source:\n{}\nref:\n{}\npred:\n".format(line.strip(), ref_line.strip()))
       if not line:
         break
       beam_search_lines = []
@@ -105,10 +105,11 @@ def main(pred_path, ref_path, format, result_path):
       assert len(beam_search_lines) > 0, (line,beam_search_lines)
       pred_fout.write(beam_search_lines[0])
       all_result_fout.write("\n")
-
   elif format == "copy_pred":
     while True:
       line = fin.readline()
+      if not line:
+        break
       new_line = copy_model_post_fn(line)
       ref_line = ref_fin.readline()
       all_result_fout.write("source:\n{}\nref:{}\npred:".format(line.strip(), ref_line.strip()))
