@@ -19,3 +19,4 @@ from seq2seq.decoders.attention import *
 from seq2seq.decoders.basic_decoder import *
 from seq2seq.decoders.attention_decoder import *
 from seq2seq.decoders.copy_gen_decoder import  *
+from seq2seq.decoders.new_attention_decoder import *

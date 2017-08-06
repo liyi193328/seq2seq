@@ -30,6 +30,7 @@ import numpy as np
 
 import networkx as nx
 from networkx.readwrite import json_graph
+from seq2seq.data import vocab
 
 PARSER = argparse.ArgumentParser(
     description="Generate beam search visualizations")
@@ -71,13 +72,13 @@ def _add_graph_level(graph, level, parent_ids, names, scores):
     graph.add_node(new_node)
     graph.node[new_node]["name"] = names[i]
     graph.node[new_node]["score"] = str(scores[i])
-    graph.node[new_node]["size"] = 100
+    graph.node[new_node]["size"] = 300
     # Add an edge to the parent
     graph.add_edge(parent_node, new_node)
 
 def create_graph(predicted_ids, parent_ids, scores, vocab=None):
   def get_node_name(pred):
-    return vocab[pred] if vocab else str(pred)
+    return vocab.id2word(pred) if vocab else str(pred)
 
   seq_length = predicted_ids.shape[0]
   graph = nx.DiGraph()
@@ -92,19 +93,17 @@ def main():
   beam_data = np.load(ARGS.data)
 
   # Optionally load vocabulary data
-  vocab = None
   if ARGS.vocab:
-    with open(ARGS.vocab) as file:
-      vocab = file.readlines()
-    vocab = [_.strip() for _ in vocab]
-    vocab += ["UNK", "SEQUENCE_START", "SEQUENCE_END"]
+    vocab_cls = vocab.Vocab(ARGS.vocab)
 
   if not os.path.exists(ARGS.output_dir):
     os.makedirs(ARGS.output_dir)
 
+  rel_script_dir = os.path.dirname(os.path.realpath(__file__))
+  beam_search_viz_dir = os.path.abspath(os.path.join(rel_script_dir, "beam_search_viz"))
   # Copy required files
-  shutil.copy2("./bin/tools/beam_search_viz/tree.css", ARGS.output_dir)
-  shutil.copy2("./bin/tools/beam_search_viz/tree.js", ARGS.output_dir)
+  shutil.copy2("{}/tree.css".format(beam_search_viz_dir), ARGS.output_dir)
+  shutil.copy2("{}/tree.js".format(beam_search_viz_dir), ARGS.output_dir)
 
   for idx in range(len(beam_data["predicted_ids"])):
     predicted_ids = beam_data["predicted_ids"][idx]
@@ -115,7 +114,7 @@ def main():
         predicted_ids=predicted_ids,
         parent_ids=parent_ids,
         scores=scores,
-        vocab=vocab)
+        vocab=vocab_cls)
 
     json_str = json.dumps(
         json_graph.tree_data(graph, (0, 0)),

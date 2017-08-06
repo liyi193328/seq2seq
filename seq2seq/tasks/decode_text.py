@@ -24,6 +24,7 @@ import functools
 from pydoc import locate
 
 import os
+import pickle
 import copy
 import codecs
 import numpy as np
@@ -131,6 +132,16 @@ class DecodeText(InferenceTask):
         raise ValueError("postproc_fn not found: {}".format(
             self.params["postproc_fn"]))
 
+    self._attn_path = None
+    if self.params["dump_attn_scores"] is True:
+      assert self.params["attn_dir"] != ""
+      assert self.params["attn_name"] != ""
+      self._attn_dir = self.params["attn_dir"]
+      self._attn_name = self.params["attn_name"]
+      if os.path.exists(self._attn_dir) is False:
+        os.makedirs(self._attn_dir)
+      self._attn_path = os.path.join(self._attn_dir, self._attn_name)
+
   @staticmethod
   def default_params():
     params = {}
@@ -139,7 +150,10 @@ class DecodeText(InferenceTask):
         "postproc_fn": "",
         "unk_replace": False,
         "unk_mapping": None,
-        "save_pred_path": None
+        "save_pred_path": None,
+        "dump_attn_scores": False,
+        "attn_dir": "",
+        "attn_name": ""
     })
     return params
 
@@ -148,9 +162,12 @@ class DecodeText(InferenceTask):
     self.write_cnt = 0
     self.sample_cnt = 0
     self.infer_outs = []
+    self.attn_scores_list = []
     self.run_cnt = 0
     if self._save_pred_path is not None:
       self._pred_fout = codecs.open(self._save_pred_path, "w", "utf-8")
+    if self._attn_path is not None:
+      self._attn_fout = codecs.open(self._attn_path, "wb")
 
   def before_run(self, _run_context):
 
@@ -170,12 +187,15 @@ class DecodeText(InferenceTask):
     return tf.train.SessionRunArgs(fetches)
 
   def write_buffer_to_disk(self):
-    if self._pred_fout.closed == False:
-      self._pred_fout.close()
     self._pred_fout = codecs.open(self._save_pred_path, "a", "utf-8")
+    self._attn_fout = codecs.open(self._attn_path, "ab")
+
     for infer_out in self.infer_outs:
       self._pred_fout.write(infer_out)
+      pickle.dump( self.attn_scores_list, self._attn_fout )
+      self.attn_scores_list = []
     self._pred_fout.close()
+    self._attn_fout.close()
     self.sample_cnt = 0
     self.infer_outs = []
     tf.logging.info("write times: {}".format(self.write_cnt))
@@ -184,6 +204,7 @@ class DecodeText(InferenceTask):
   def after_run(self, _run_context, run_values):
 
     fetches_batch = copy.deepcopy(run_values.results)
+
     for fetches in unbatch_dict(fetches_batch):
       self.sample_cnt += 1
       # tf.logging.info("done samples: {}".format(self.sample_cnt))
@@ -196,19 +217,19 @@ class DecodeText(InferenceTask):
         fetches["features.source_tokens"].astype("S"), "utf-8")
       source_tokens = fetches["features.source_tokens"]
       source_len = fetches["features.source_len"]
-      source_sent = self.params["delimiter"].join(source_tokens)
 
+      source_sent = self.params["delimiter"].join(source_tokens)
       beam_search_sents = []
-      beam_with = 1
+      beam_width = 1
 
       if predicted_tokens_list.ndim > 1:
-        beam_with = np.shape(predicted_tokens_list)[1]
+        beam_width = np.shape(predicted_tokens_list)[1]
 
       # If we're using beam search we take the first beam
       if np.ndim(predicted_tokens_list) > 1:
         predicted_tokens = predicted_tokens_list[:, 0]
 
-      for i in range(beam_with):
+      for i in range(beam_width):
         if predicted_tokens_list.ndim > 1:
           predicted_tokens = predicted_tokens_list[:, i]
         else:
@@ -228,11 +249,21 @@ class DecodeText(InferenceTask):
 
         pred_sent = self.params["delimiter"].join(predicted_tokens).split(
             "SEQUENCE_END")[0]
+
         # Apply postproc
         if self._postproc_fn:
           pred_sent = self._postproc_fn(pred_sent)
-
         pred_sent = pred_sent.strip()
+        actual_source_sent = source_sent.split("SEQUENCE_END")[0]
+        actual_source_len = source_len - 1
+        pred_len = len(pred_sent.split(self.params["delimiter"]))
+
+        dump_attention_scores = attention_scores[0:pred_len, 0:actual_source_len]
+        self.attn_scores_list.append({
+          "source_sent": actual_source_sent.split(" "),
+          "pred_sent": pred_sent.split(" "),
+          "attn_score": dump_attention_scores
+        })
         beam_search_sents.append(pred_sent)
 
       pred_sents_str = "\n".join(beam_search_sents)
@@ -248,6 +279,7 @@ class DecodeText(InferenceTask):
 
     self.write_buffer_to_disk()
     tf.logging.info("decode text end session")
-    if self._save_pred_path is not None:
-      if self._pred_fout.closed == False:
-        self._pred_fout.close()
+    for fout in [self._attn_fout, self._pred_fout]:
+     if fout is not None:
+      if fout.closed == False:
+        fout.close()

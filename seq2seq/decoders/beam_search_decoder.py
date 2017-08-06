@@ -27,7 +27,7 @@ from tensorflow.python.util import nest  # pylint: disable=E0611
 
 from seq2seq.inference import beam_search
 from seq2seq.decoders.rnn_decoder import RNNDecoder
-
+from seq2seq.contrib.seq2seq.attention_wrapper import AttentionWrapperState
 
 class FinalBeamDecoderOutput(
     namedtuple("FinalBeamDecoderOutput",
@@ -158,8 +158,13 @@ class BeamSearchDecoder(RNNDecoder):
         config=self.config)
 
     # Shuffle everything according to beam search result
-    decoder_state = nest.map_structure(
-        lambda x: tf.gather(x, bs_output.beam_parent_ids), decoder_state)
+    if isinstance(decoder_state, AttentionWrapperState):
+      beam_cell_state = nest.map_structure(
+        lambda x: tf.gather(x, bs_output.beam_parent_ids), decoder_state.cell_state)
+      decoder_state = decoder_state.clone(cell_state=beam_cell_state)
+    else:
+      decoder_state = nest.map_structure(
+          lambda x: tf.gather(x, bs_output.beam_parent_ids), decoder_state)
     decoder_output = nest.map_structure(
         lambda x: tf.gather(x, bs_output.beam_parent_ids), decoder_output)
 
