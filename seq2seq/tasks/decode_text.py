@@ -254,13 +254,14 @@ class DecodeText(InferenceTask):
         if self._postproc_fn:
           pred_sent = self._postproc_fn(pred_sent)
         pred_sent = pred_sent.strip()
-        actual_source_sent = source_sent.split("SEQUENCE_END")[0]
-        actual_source_len = source_len - 1
+        actual_source_sent = source_sent.split("SEQUENCE_END")[0].strip()
+        actual_source_tokens = actual_source_sent.split(" ")
+        actual_source_len = len(actual_source_tokens)
         pred_len = len(pred_sent.split(self.params["delimiter"]))
 
         dump_attention_scores = attention_scores[0:pred_len, 0:actual_source_len]
         self.attn_scores_list.append({
-          "source_sent": actual_source_sent.split(" "),
+          "source_sent": actual_source_tokens,
           "pred_sent": pred_sent.split(" "),
           "attn_score": dump_attention_scores
         })

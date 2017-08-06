@@ -107,7 +107,7 @@ class Decoder(object):
     """
     raise NotImplementedError
 
-  def finalize(self, outputs, final_state):
+  def finalize(self, outputs, final_state, final_sequence_lengths=None):
     raise NotImplementedError
 
 
@@ -300,4 +300,4 @@ def dynamic_decode(decoder,
     if not output_time_major:
       final_outputs = nest.map_structure(_transpose_batch_time, final_outputs)
 
-  return final_outputs, final_state
+  return final_outputs, final_state, final_sequence_lengths

@@ -85,7 +85,7 @@ class RNNDecoder(Decoder, GraphModule, Configurable):
     self.initial_state = initial_state
     self.helper = helper
 
-  def finalize(self, outputs, final_state):
+  def finalize(self, outputs, final_state, final_sequence_lengths=None):
     """Applies final transformation to the decoder output once decoding is
     finished.
     """
@@ -113,9 +113,9 @@ class RNNDecoder(Decoder, GraphModule, Configurable):
     if self.mode == tf.contrib.learn.ModeKeys.INFER:
       maximum_iterations = self.params["max_decode_length"]
 
-    outputs, final_state = dynamic_decode(
+    outputs, final_state, final_sequence_lengths = dynamic_decode(
         decoder=self,
         output_time_major=True,
         impute_finished=False,
         maximum_iterations=maximum_iterations)
-    return self.finalize(outputs, final_state)
+    return self.finalize(outputs, final_state, final_sequence_lengths)
