@@ -97,6 +97,8 @@ def main(pred_path_list, ref_path, result_dir, format="source_beam_search"):
         all_result_fout.write("source:\n{}\nref:\n{}\npred:\n".format(line.strip(), ref_line.strip()))
         if not line:
           break
+        if not ref_line:
+          break
         beam_search_lines = []
         while True:
           b = fin.readline()
@@ -114,6 +116,8 @@ def main(pred_path_list, ref_path, result_dir, format="source_beam_search"):
           break
         new_line = copy_model_post_fn(line)
         ref_line = ref_fin.readline()
+        if not ref_line:
+          break
         all_result_fout.write("source:\n{}\nref:{}\npred:".format(line.strip(), ref_line.strip()))
         pred_fout.write(new_line.strip() + "\n")
         all_result_fout.write(new_line.strip() + "\n")
