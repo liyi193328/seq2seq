@@ -74,65 +74,67 @@ def copy_model_post_fn(line):
   return " ".join(tokens)
 
 @click.command()
-@click.argument("pred_path")
+@click.argument("pred_path_list", nargs=-1, type=str)
 @click.argument("ref_path")
-@click.argument("format")
-@click.argument("result_path")
-def main(pred_path, ref_path, format, result_path):
-  logging.warn("source_path and pred_path must with line one by one")
-  pred_post_name = os.path.basename(pred_path).split(".")[0] + ".extract.pred"
-  all_result_path_name = pred_post_name.replace(".extract.pred", ".all.result")
-  extract_pred_path = os.path.join(os.path.join(os.path.dirname(result_path), pred_post_name))
-  all_result_path = os.path.join(os.path.join(os.path.dirname(result_path), all_result_path_name))
-  pred_fout = codecs.open(extract_pred_path, "w", "utf-8")
-  all_result_fout = codecs.open(all_result_path, "w", "utf-8")
-  fin = codecs.open(pred_path, "r", "utf-8")
-  ref_fin = codecs.open(ref_path, "r", "utf-8")
-  if format == "source_beam_search":
-    while True:
-      line = fin.readline()
-      ref_line = ref_fin.readline()
-      all_result_fout.write("source:\n{}\nref:\n{}\npred:\n".format(line.strip(), ref_line.strip()))
-      if not line:
-        break
-      beam_search_lines = []
+@click.argument("result_dir")
+@click.option("format", default="source_beam_search", type=str, help="source_beam_search|copy_pred")
+def main(pred_path_list, ref_path, result_dir, format="source_beam_search"):
+  for pred_path in pred_path_list:
+    pred_post_name = os.path.basename(pred_path).split(".")[0] + ".extract.pred"
+    all_result_path_name = pred_post_name.replace(".extract.pred", ".all.result")
+    score_name = pred_post_name.replace(".extract.pred", ".score")
+    extract_pred_path = os.path.join(result_dir, pred_post_name)
+    all_result_path = os.path.join(result_dir, all_result_path_name)
+    score_result_path = os.path.join(result_dir, score_name)
+    pred_fout = codecs.open(extract_pred_path, "w", "utf-8")
+    all_result_fout = codecs.open(all_result_path, "w", "utf-8")
+    fin = codecs.open(pred_path, "r", "utf-8")
+    ref_fin = codecs.open(ref_path, "r", "utf-8")
+    if format == "source_beam_search":
       while True:
-        b = fin.readline()
-        if b == "" or b.strip() == "":
+        line = fin.readline()
+        ref_line = ref_fin.readline()
+        all_result_fout.write("source:\n{}\nref:\n{}\npred:\n".format(line.strip(), ref_line.strip()))
+        if not line:
           break
-        all_result_fout.write(b)
-        beam_search_lines.append(b)
-      assert len(beam_search_lines) > 0, (line,beam_search_lines)
-      pred_fout.write(beam_search_lines[0])
-      all_result_fout.write("\n")
-  elif format == "copy_pred":
-    while True:
-      line = fin.readline()
-      if not line:
-        break
-      new_line = copy_model_post_fn(line)
-      ref_line = ref_fin.readline()
-      all_result_fout.write("source:\n{}\nref:{}\npred:".format(line.strip(), ref_line.strip()))
-      pred_fout.write(new_line.strip() + "\n")
-      all_result_fout.write(new_line.strip() + "\n")
-      all_result_fout.write("\n")
-  else:
+        beam_search_lines = []
+        while True:
+          b = fin.readline()
+          if b == "" or b.strip() == "":
+            break
+          all_result_fout.write(b)
+          beam_search_lines.append(b)
+        assert len(beam_search_lines) > 0, (line,beam_search_lines)
+        pred_fout.write(beam_search_lines[0])
+        all_result_fout.write("\n")
+    elif format == "copy_pred":
+      while True:
+        line = fin.readline()
+        if not line:
+          break
+        new_line = copy_model_post_fn(line)
+        ref_line = ref_fin.readline()
+        all_result_fout.write("source:\n{}\nref:{}\npred:".format(line.strip(), ref_line.strip()))
+        pred_fout.write(new_line.strip() + "\n")
+        all_result_fout.write(new_line.strip() + "\n")
+        all_result_fout.write("\n")
+    else:
+      pred_fout.close()
+      fin.close()
+      all_result_fout.close()
+      raise ValueError("{} not right[source_beam_search|copy_pred]".format(format))
     pred_fout.close()
     fin.close()
     all_result_fout.close()
-    raise ValueError("{} not in copy")
-  pred_fout.close()
-  fin.close()
-  all_result_fout.close()
-  print("pred extract from {} to {}".format(pred_path, extract_pred_path))
-  print("source pred[post] write to {}".format(all_result_path))
-  bleu_out = get_bleu_info(ref_path, extract_pred_path)
-  rouge_score = get_rouge(ref_path, extract_pred_path)
-  result = {}
-  result["bleu"] = bleu_out
-  result["rouge"] = rouge_score
-  json.dump(result, codecs.open(result_path, "w", "utf-8"), indent=2)
-  print("write result to {}".format(result_path))
+    print("pred extract from {} to {}".format(pred_path, extract_pred_path))
+    print("source pred[post] write to {}".format(all_result_path))
+    bleu_out = get_bleu_info(ref_path, extract_pred_path)
+    rouge_score = get_rouge(ref_path, extract_pred_path)
+    result = {}
+    result["bleu"] = bleu_out
+    result["rouge"] = rouge_score
+    json.dump(result, codecs.open(score_result_path, "w", "utf-8"), indent=2)
+    print("write result to {}".format(score_result_path))
   return
 
 if __name__ == "__main__":

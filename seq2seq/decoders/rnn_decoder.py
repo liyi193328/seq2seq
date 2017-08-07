@@ -94,6 +94,7 @@ class RNNDecoder(Decoder, GraphModule, Configurable):
 
   @staticmethod
   def default_params():
+
     return {
         "max_decode_length": 100,
         "rnn_cell": _default_rnn_cell_params(),
