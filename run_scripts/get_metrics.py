@@ -78,8 +78,9 @@ def copy_model_post_fn(line):
 @click.argument("pred_path_list", nargs=-1, type=str)
 @click.argument("ref_path")
 @click.argument("result_dir")
+@click.option("--source_path", default=None, help="provide source path when copy_pred format")
 @click.option("--format", default="source_beam_search", type=str, help="source_beam_search|copy_pred")
-def main(pred_path_list, ref_path, result_dir, format="source_beam_search"):
+def main(pred_path_list, ref_path, result_dir, source_path=None, format="source_beam_search"):
   for pred_path in pred_path_list:
     pred_post_name = os.path.basename(pred_path).split(".")[0] + ".extract.pred"
     all_result_path_name = pred_post_name.replace(".extract.pred", ".all.result")
@@ -89,6 +90,9 @@ def main(pred_path_list, ref_path, result_dir, format="source_beam_search"):
     score_result_path = os.path.join(result_dir, score_name)
     pred_fout = codecs.open(extract_pred_path, "w", "utf-8")
     all_result_fout = codecs.open(all_result_path, "w", "utf-8")
+    source_fin = None
+    if source_path is not None:
+      source_fin = codecs.open(source_path, "r", "utf-8")
     fin = codecs.open(pred_path, "r", "utf-8")
     ref_fin = codecs.open(ref_path, "r", "utf-8")
     if format == "source_beam_search":
@@ -111,17 +115,22 @@ def main(pred_path_list, ref_path, result_dir, format="source_beam_search"):
         pred_fout.write(beam_search_lines[0])
         all_result_fout.write("\n")
     elif format == "copy_pred":
+      if source_path is None:
+        raise ValueError("provide source_path")
       while True:
-        line = fin.readline()
-        if not line:
+        pred_line = fin.readline()
+        source_line = source_fin.readline()
+        if not source_line:
           break
-        new_line = copy_model_post_fn(line)
+        if not pred_line:
+          break
+        pred_line = copy_model_post_fn(pred_line)
         ref_line = ref_fin.readline()
         if not ref_line:
           break
-        all_result_fout.write("source:\n{}\nref:{}\npred:".format(line.strip(), ref_line.strip()))
-        pred_fout.write(new_line.strip() + "\n")
-        all_result_fout.write(new_line.strip() + "\n")
+        all_result_fout.write("source:\n{}\nref:\n{}\npred:\n".format(source_line, ref_line.strip()))
+        pred_fout.write(pred_line.strip() + "\n")
+        all_result_fout.write(pred_line.strip() + "\n")
         all_result_fout.write("\n")
     else:
       pred_fout.close()
