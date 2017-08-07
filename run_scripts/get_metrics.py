@@ -77,7 +77,7 @@ def copy_model_post_fn(line):
 @click.argument("pred_path_list", nargs=-1, type=str)
 @click.argument("ref_path")
 @click.argument("result_dir")
-@click.option("format", default="source_beam_search", type=str, help="source_beam_search|copy_pred")
+@click.option("--format", default="source_beam_search", type=str, help="source_beam_search|copy_pred")
 def main(pred_path_list, ref_path, result_dir, format="source_beam_search"):
   for pred_path in pred_path_list:
     pred_post_name = os.path.basename(pred_path).split(".")[0] + ".extract.pred"
