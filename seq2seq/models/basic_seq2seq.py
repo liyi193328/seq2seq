@@ -46,6 +46,7 @@ class BasicSeq2Seq(Seq2SeqModel):
     super(BasicSeq2Seq, self).__init__(params, mode, name)
     self.encoder_class = locate(self.params["encoder.class"])
     self.decoder_class = locate(self.params["decoder.class"])
+    self.decoder_helper = locate(self.params["decoder_helper.class"])
 
   @staticmethod
   def default_params():
@@ -56,7 +57,9 @@ class BasicSeq2Seq(Seq2SeqModel):
         "encoder.class": "seq2seq.encoders.UnidirectionalRNNEncoder",
         "encoder.params": {},  # Arbitrary parameters for the encoder
         "decoder.class": "seq2seq.decoders.BasicDecoder",
-        "decoder.params": {}  # Arbitrary parameters for the decoder
+        "decoder.params": {},  # Arbitrary parameters for the decoder
+        "decoder_helper.class": "seq2seq.contrib.seq2seq.helper.TrainingHelper",
+        "decoder_helper.params": {}
     })
     return params
 
@@ -84,7 +87,9 @@ class BasicSeq2Seq(Seq2SeqModel):
     helper_train = tf_decode_helper.TrainingHelper(
         inputs=target_embedded[:, :-1],
         sequence_length=labels["target_len"] - 1)
+
     decoder_initial_state = bridge()
+
     return decoder(decoder_initial_state, helper_train)
 
   def _decode_infer(self, decoder, bridge, _encoder_output, features, labels):
@@ -92,7 +97,6 @@ class BasicSeq2Seq(Seq2SeqModel):
     batch_size = self.batch_size(features, labels)
     if self.use_beam_search:
       batch_size = self.params["inference.beam_search.beam_width"]
-
     target_start_id = self.target_vocab_info.special_vocab.SEQUENCE_START
     helper_infer = tf_decode_helper.GreedyEmbeddingHelper(
         embedding=self.target_embedding,

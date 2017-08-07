@@ -56,10 +56,6 @@ def _create_figure(predictions_dict):
 
   # Plot
   fig = plt.figure(figsize=(8, 8))
-  if "attention_scores" in predictions_dict:
-    attention_scores = predictions_dict["attention_scores"]
-  else:
-    attention_scores = predictions_dict["beam_search_output.original_outputs.attention_scores"][:,0,:]
   plt.imshow(
       X=predictions_dict["attention_scores"][:prediction_len, :source_len],
       interpolation="nearest",
@@ -99,7 +95,7 @@ class DumpAttention(InferenceTask):
   @staticmethod
   def default_params():
     params = {}
-    params.update({"output_dir": "", "dump_plots": True})
+    params.update({"output_dir": "", "dump_plots": False})
     return params
 
   def begin(self):
@@ -114,7 +110,8 @@ class DumpAttention(InferenceTask):
     if "attention_scores" in self._predictions:
       fetches["attention_scores"] = self._predictions["attention_scores"]
     elif "beam_search_output.original_outputs.attention_scores" in self._predictions:
-      fetches["beam_search_output.original_outputs.attention_scores"] = self._predictions["beam_search_output.original_outputs.attention_scores"]
+      # fetches["beam_search_output.original_outputs.attention_scores"] = self._predictions["beam_search_output.original_outputs.attention_scores"]
+      fetches["attention_scores"] = self._predictions["beam_search_output.original_outputs.attention_scores"]
 
     return tf.train.SessionRunArgs(fetches)
 
@@ -124,17 +121,21 @@ class DumpAttention(InferenceTask):
       # Convert to unicode
       fetches["predicted_tokens"] = np.char.decode(
           fetches["predicted_tokens"].astype("S"), "utf-8")
+
+      fetches["predicted_tokens"] = fetches["predicted_tokens"][:, 0]
+      fetches["attention_scores"] = fetches["attention_scores"][:, 0, :]
+
       fetches["features.source_tokens"] = np.char.decode(
           fetches["features.source_tokens"].astype("S"), "utf-8")
 
       if self.params["dump_plots"]:
-        output_path = os.path.join(self.params["output_dir"],
-                                   "{:05d}.png".format(self._idx))
-        _create_figure(fetches)
-        plt.savefig(output_path)
-        plt.close()
-        tf.logging.info("Wrote %s", output_path)
-        self._idx += 1
+          output_path = os.path.join(self.params["output_dir"],
+                                     "{:05d}.png".format(self._idx))
+          _create_figure(fetches)
+          plt.savefig(output_path)
+          plt.close()
+          tf.logging.info("Wrote %s", output_path)
+          self._idx += 1
       self._attention_scores_accum.append(_get_scores(fetches))
 
   def end(self, _session):

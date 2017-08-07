@@ -16,6 +16,7 @@
 
 from seq2seq.models.basic_seq2seq import BasicSeq2Seq
 from seq2seq.models.attention_seq2seq import AttentionSeq2Seq
+from seq2seq.models.new_attention_seq2seq import NewAttentionSeq2Seq
 from seq2seq.models.copy_gen_model import CopyGenSeq2Seq
 
 from seq2seq.models.image2seq import Image2Seq

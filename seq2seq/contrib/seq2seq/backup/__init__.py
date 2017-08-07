@@ -11,12 +11,3 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Collection of decoders and decoder-related functions.
-"""
-
-from seq2seq.decoders.rnn_decoder import *
-from seq2seq.decoders.attention import *
-from seq2seq.decoders.basic_decoder import *
-from seq2seq.decoders.attention_decoder import *
-from seq2seq.decoders.copy_gen_decoder import  *
-from seq2seq.decoders.new_attention_decoder import *
