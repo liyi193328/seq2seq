@@ -57,6 +57,7 @@ def get_rouge(source_path, pred_path):
 @click.argument("source_path")
 @click.argument("pred_path")
 @click.argument("result_path")
+@click.argument("--extract", default="self", type=str, help="extract pred from")
 def main(source_path, pred_path, result_path):
   logging.warn("source_path and pred_path must with line one by one")
   bleu_out = get_bleu_info(source_path, pred_path)
