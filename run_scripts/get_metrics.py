@@ -128,7 +128,7 @@ def main(pred_path_list, ref_path, result_dir, source_path=None, format="source_
         ref_line = ref_fin.readline()
         if not ref_line:
           break
-        all_result_fout.write("source:\n{}\nref:\n{}\npred:\n".format(source_line, ref_line.strip()))
+        all_result_fout.write("source:\n{}\nref:\n{}\npred:\n".format(source_line.strip(), ref_line.strip()))
         pred_fout.write(pred_line.strip() + "\n")
         all_result_fout.write(pred_line.strip() + "\n")
         all_result_fout.write("\n")
