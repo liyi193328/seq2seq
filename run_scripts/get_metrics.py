@@ -41,6 +41,7 @@ def get_bleu_info(ref_path, pred_path):
 def get_rouge(ref_path, pred_path):
   """Evaluate the files in ref_dir and dec_dir with pyrouge, returning results_dict"""
   print("###########cal rouge###############")
+  print("ref:{}, pred:{}".format(ref_path, pred_path))
   source_lines = [line.strip() for line in codecs.open(ref_path, "r", "utf-8").readlines()]
   pred_lines = [ pred.strip() for pred in codecs.open(pred_path, "r", "utf-8").readlines() ]
   assert len(source_lines) == len(pred_lines)
