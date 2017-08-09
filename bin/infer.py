@@ -26,6 +26,7 @@ from pydoc import locate
 import os
 import yaml
 import seq2seq
+import codecs
 
 from six import string_types
 
@@ -53,6 +54,7 @@ tf.flags.DEFINE_string("input_pipeline", None,
                        A YAML string.""")
 
 tf.flags.DEFINE_string("model_dir", None, "directory to load model from")
+tf.flags.DEFINE_string("all_model_list_path", None, "every line ia s model path, task_index's work infer the correspond model")
 tf.flags.DEFINE_string("checkpoint_path", None,
                        """Full path to the checkpoint to be loaded. If None,
                        the latest checkpoint in the model dir is used.""")
@@ -63,6 +65,20 @@ tf.flags.DEFINE_string("job_name", None, "None | worker | ps")
 tf.flags.DEFINE_integer("task_index", None, "distributed worker index to infer")
 tf.flags.DEFINE_string("data_parts",None, "data parts, split by ,; every time infer data_parts[task_index]'s source data")
 FLAGS = tf.flags.FLAGS
+
+modelpathAndprefix = None
+if FLAGS.all_model_list_path is not None:
+
+  modelpathAndprefix = [path.strip().split() for path in codecs.open(FLAGS.all_model_list_path, "r", "utf-8").readlines()]
+  tf.logging.info("modelname_prefix: {}".format(modelpathAndprefix))
+
+if FLAGS.task_index is not None:
+  assert FLAGS.model_dir is None
+  assert  modelpathAndprefix is not None
+  FLAGS.__setattr__("model_dir", modelpathAndprefix[FLAGS.task_index][0])
+  pred_dir = "/mnt/yardcephfs/mmyard/g_wxg_td_prc/mng/turingli/query_rewrite/43w_86w_new_data_infer"
+  save_name = modelpathAndprefix[FLAGS.task_index][1] + "." + os.path.basename(FLAGS.model_dir) #prefix.model_name
+  FLAGS.__setattr__("save_pred_path", os.path.join(pred_dir, save_name))
 
 data_index = None
 if FLAGS.job_name == "worker" and FLAGS.task_index is not None:
@@ -131,6 +147,11 @@ def main(_argv):
     if data_index is not None:
       FLAGS.save_pred_path = FLAGS.save_pred_path + "_pred_part_{}".format(data_index)
     FLAGS.save_pred_path = FLAGS.save_pred_path + "." + str(global_steps)
+
+  if os.path.exists(FLAGS.save_pred_path):
+    tf.logging.warning("{} exists before, exit infer".format(FLAGS.save_pred_path))
+    return
+  tf.logging.warning("will write to {}".format(FLAGS.save_pred_path))
 
   # Load inference tasks
   hooks = []
