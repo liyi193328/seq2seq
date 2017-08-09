@@ -23,7 +23,7 @@ import abc
 
 import six
 
-from tensorflow.contrib.seq2seq.python.ops import decoder
+from seq2seq.contrib.seq2seq import decoder
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
 from tensorflow.python.layers import base as layers_base
