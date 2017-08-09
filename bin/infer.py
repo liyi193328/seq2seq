@@ -68,7 +68,6 @@ FLAGS = tf.flags.FLAGS
 
 modelpathAndprefix = None
 if FLAGS.all_model_list_path is not None:
-
   modelpathAndprefix = [path.strip().split() for path in codecs.open(FLAGS.all_model_list_path, "r", "utf-8").readlines()]
   tf.logging.info("modelname_prefix: {}".format(modelpathAndprefix))
 
