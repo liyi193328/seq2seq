@@ -150,11 +150,49 @@ def filter_low_sim_from_json(json_path, save_path=None, sim_threshold=0.95):
       continue
   fout.close()
 
+@click.command("unique_train_dev_test")
+@click.argument("source_path_or_dir")
+@click.argument("dev_path")
+@click.argument("test_path")
+def unique_train_dev_test(source_path_or_dir, dev_path, test_path):
+  source_paths = utils.get_dir_or_file_path(source_path_or_dir)
+
+  def flat_to_set(path):
+    lines = codecs.open(path, "r", "utf-8").readlines()
+    x = set()
+    for line in lines:
+      t = line.strip().split("\t")
+      for s in t:
+        x.add(s.strip())
+    return x
+  test_ques_set = flat_to_set(test_path)
+  dev_ques_set = flat_to_set(dev_path)
+
+  for source_path in source_paths:
+    cnt = 0
+    source_fin = codecs.open(source_path, "r", "utf-8")
+    new_path = source_path + ".new"
+    fout = codecs.open(new_path, "w", "utf-8")
+    for line in source_fin:
+      st = line.strip().split("\t")
+      s , t = st[0].strip(), st[1].strip()
+      if s in test_ques_set or s in dev_ques_set:
+        cnt += 1
+        continue
+      if t in test_ques_set or t in dev_ques_set:
+        cnt += 1
+        continue
+      fout.write("\t".join([s, t]) + "\n")
+    fout.close()
+    print("save to {}".format(new_path))
+    print("filter {} pairs in {}".format(cnt, source_path))
+
 cli.add_command(filter_questions)
 cli.add_command(filter_low_sim_from_json)
 cli.add_command(merge_and_unique_pred_result)
 cli.add_command(filter_same_pairs)
 cli.add_command(keep_only_question)
+cli.add_command(unique_train_dev_test)
 
 if __name__ == "__main__":
   # filter_low_sim_from_json()
