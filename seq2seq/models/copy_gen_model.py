@@ -242,7 +242,8 @@ class CopyGenSeq2Seq(AttentionSeq2Seq):
       batch_size = self.params["inference.beam_search.beam_width"]
 
     target_start_id = self.target_vocab_info.special_vocab.SEQUENCE_START
-    helper_infer = tf_decode_helper.GreedyEmbeddingHelper(
+    helper_infer = tf_decode_helper.CopyGenGreedyEmbeddingHelper(
+      self.target_vocab_info,
       embedding=self.target_embedding,
       start_tokens=tf.fill([batch_size], target_start_id),
       end_token=self.target_vocab_info.special_vocab.SEQUENCE_END)
@@ -281,9 +282,6 @@ class CopyGenSeq2Seq(AttentionSeq2Seq):
         return tf.less(now_t, max_t)
 
       def body(t, max_t, final_dists, *args, **kwargs):
-        # p_gen = tf.gather(p_gens, t)
-        # vocab_dist = tf.gather(vocab_dists, t)
-        # attn_dist = tf.gather(attn_dists, t)
         p_gen = p_gens[t,:]
         vocab_dist = vocab_dists[t, :, :]
         attn_dist = attn_dists[t, :, :]
@@ -307,6 +305,7 @@ class CopyGenSeq2Seq(AttentionSeq2Seq):
         return t+1, max_t, final_dists
 
       now_t = tf.constant(0)
+
       _, _, final_dists = tf.while_loop(
         should_continue,
         body,

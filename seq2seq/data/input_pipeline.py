@@ -323,11 +323,8 @@ class FeaturedTFRecordInputPipeline(InputPipeline):
   def make_data_provider(self, **kwargs):
 
     source_keys_to_features = global_vars.source_keys_to_features
-
     target_keys_to_features = global_vars.target_keys_to_features
-
     decoder = featuredRecordDecoder.FeaturedTFExampleDecoder(source_keys_to_features, target_keys_to_features)
-
     dataset = tf.contrib.slim.dataset.Dataset(
         data_sources=self.params["files"],
         reader=tf.TFRecordReader,

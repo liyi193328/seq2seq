@@ -189,10 +189,11 @@ class CopyGenDecoder(RNNDecoder):
     if self.mode == tf.contrib.learn.ModeKeys.INFER:
       maximum_iterations = self.params["max_decode_length"]
 
-    outputs, final_state = dynamic_decode(
+    outputs, final_state, _ = dynamic_decode(
         decoder=self,
         output_time_major=True,
         impute_finished=False,
         maximum_iterations=maximum_iterations)
+
     return self.finalize(outputs, final_state)
 

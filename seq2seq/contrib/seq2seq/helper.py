@@ -22,7 +22,7 @@ from __future__ import print_function
 import abc
 
 import six
-
+import tensorflow as tf
 from seq2seq.contrib.seq2seq import decoder
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
@@ -33,8 +33,14 @@ from tensorflow.python.ops import embedding_ops
 from tensorflow.python.ops import gen_array_ops
 from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import tensor_array_ops
-from tensorflow.python.ops.distributions import bernoulli
-from tensorflow.python.ops.distributions import categorical
+try:
+  from tensorflow.python.ops.distributions import bernoulli
+  from tensorflow.python.ops.distributions import categorical
+except:
+  # Backwards compatibility with TensorFlow prior to 1.2.
+  from tensorflow.contrib.distributions.python.ops import bernoulli
+  from tensorflow.contrib.distributions.python.ops import categorical
+
 from tensorflow.python.util import nest
 
 __all__ = [
@@ -512,6 +518,41 @@ class GreedyEmbeddingHelper(Helper):
         lambda: self._embedding_fn(sample_ids))
     return (finished, next_inputs, state)
 
+def CopyGenGreedyEmbeddingHelper(GreedyEmbeddingHelper):
+  """if argmax's id 
+  :param GreedyEmbeddingHelper: 
+  :return: 
+  """
+  def __init__(self, target_vocab_info, *args, *kwargs):
+    self._target_vocab_info = target_vocab_info
+    self._target_unk_id = target_vocab_info.special_vocab.UNK
+    self._target_vocab_size = target_vocab_info.vocab_size
+    super(CopyGenGreedyEmbeddingHelper, self).__init__(*args, *kwargs)
+
+  def sample(self, time, outputs, state, name=None):
+    del time, state  # unused by sample_fn
+    # Outputs are logits, use argmax to get the most probable id
+    if not isinstance(outputs, ops.Tensor):
+      raise TypeError("Expected outputs to be a single Tensor, got: %s" %
+                      type(outputs))
+    sample_ids = math_ops.cast(
+        math_ops.argmax(outputs, axis=-1), dtypes.int32)
+    return sample_ids
+
+  def next_inputs(self, time, outputs, state, sample_ids, name=None):
+    """next_inputs_fn for CopyGenGreedyEmbeddingHelper."""
+    del time, outputs  # unused by next_inputs_fn
+    finished = math_ops.equal(sample_ids, self._end_token)
+    all_finished = math_ops.reduce_all(finished)
+    unk_ids = tf.fill(tf.shape(sample_ids), self._target_unk_id)
+    # if sample id is greater or equal with vocab size, mean predict word come from source word, convert it to unk id to get embedding
+    new_sample_ids = tf.where(tf.greater_equal(sample_ids, self._target_vocab_size), unk_ids, sample_ids)
+    next_inputs = control_flow_ops.cond(
+        all_finished,
+        # If we're finished, the next_inputs value doesn't matter
+        lambda: self._start_inputs,
+        lambda: self._embedding_fn(new_sample_ids))
+    return (finished, next_inputs, state)
 
 class SampleEmbeddingHelper(GreedyEmbeddingHelper):
   """A helper for use during inference.

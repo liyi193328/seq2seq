@@ -993,8 +993,9 @@ def _compute_attention(attention_mechanism, cell_output, previous_alignments,
 
   return attention, alignments
 
+RNNCell = rnn_cell_impl.RNNCell or rnn_cell_impl._RNNCell
 
-class AttentionWrapper(rnn_cell_impl.RNNCell):
+class AttentionWrapper(RNNCell):
   """Wraps another `RNNCell` with attention.
   """
 

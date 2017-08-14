@@ -20,7 +20,7 @@ from __future__ import division
 from __future__ import print_function
 
 """
-total vocab = actual vocab + special_words 
+total vocab = special_words + actual vocab
 """
 
 import codecs
@@ -45,7 +45,7 @@ class VocabInfo(
   @property
   def total_size(self):
     """Returns size the the base vocabulary plus the size of extra vocabulary"""
-    return self.vocab_size + len(self.special_vocab._fields)
+    return len(self.special_vocab._fields) + self.vocab_size
 
 
 def get_vocab_info(vocab_path, special_words=SpecialWords):
@@ -58,18 +58,21 @@ def get_vocab_info(vocab_path, special_words=SpecialWords):
   Returns:
     A VocabInfo tuple.
   """
+  special_vocab = get_special_vocab(0, special_words=special_words)
   with gfile.GFile(vocab_path) as file:
-    vocab_size = sum(1 for _ in file)
-  special_vocab = get_special_vocab(vocab_size, special_words=special_words)
-  return VocabInfo(vocab_path, vocab_size, special_vocab)
+    actual_vocab_size = sum(1 for _ in file)
+  return VocabInfo(vocab_path, actual_vocab_size, special_vocab)
 
-def get_special_vocab(vocabulary_size, special_words=SpecialWords):
+def get_special_vocab(first_index=0, special_words=SpecialWords):
   """Returns the `SpecialVocab` instance for a given vocabulary size.
   """
-  return SpecialVocab(*range(vocabulary_size, vocabulary_size + len(special_words)))
+  return SpecialVocab(*range(first_index, first_index+len(special_words)))
 
 def create_tensor_vocab(vocab_instance):
-
+  """create embedding's all kinds of tensor from vocab_cls
+  :param vocab_instance: 
+  :return: 
+  """
   assert isinstance(vocab_instance, Vocab)
   word_to_ids = vocab_instance._word_to_id
   word_to_count = vocab_instance._word_to_count
@@ -129,10 +132,11 @@ def create_vocabulary_lookup_table(filename, default_value=None):
     counts = [-1. for _ in vocab]
 
   # Add special vocabulary items
-  special_vocab = get_special_vocab(vocab_size)
-  vocab += list(special_vocab._fields)
-  vocab_size += len(special_vocab)
-  counts += [-1. for _ in list(special_vocab._fields)]
+  special_vocab = get_special_vocab(first_index=0)
+  vocab_size = len(special_vocab) + vocab_size
+
+  vocab = list(special_vocab._fields) + vocab
+  counts = [-1. for _ in list(special_vocab._fields)] + counts
 
   if default_value is None:
     default_value = special_vocab.UNK
@@ -183,27 +187,31 @@ class Vocab(object):
     else:
       special_words = special_word_ins._total_words
 
-    have_nums = False
+    self.special_word_ins = special_word_ins
+    special_vocab = get_special_vocab(self._count, special_words) #[0, len(special_words))
+    self.special_vocab = special_vocab
+    print("Special words and ids:")
+
+    for w in special_vocab._fields:
+      print("{}-{}".format(w, self._count))
+      self.addWord(w, -1)
+
     # Read the vocab file and add words up to max_size
     with codecs.open(vocab_file, 'r', "utf-8") as vocab_f:
       for line in vocab_f:
         pieces = line.strip().split()
         if len(pieces) == 0:
           continue
+        count = -1
         if len(pieces) >= 2:
-          have_nums = True
-          self._word_to_count[pieces[word_index]] = int(pieces[value_index])
+         count = int(pieces[value_index])
         w = pieces[0]
-        if not have_nums:
-          self._word_to_count[w] = -1
         if w in special_words:
           s = " ".join(special_words)
           raise Exception('{} shouldn\'t be in the vocab file, but {} is'.format(s,w))
         if w in self._word_to_id:
           raise Exception('Duplicated word in vocabulary file: %s' % w)
-        self._word_to_id[w] = self._count
-        self._id_to_word[self._count] = w
-        self._count += 1
+        self.addWord(w, count)
         if max_size is not None and self._count >= max_size:
           print("max_size of vocab was specified as %i; we now have %i words. Stopping reading." % (max_size, self._count))
           break
@@ -212,18 +220,6 @@ class Vocab(object):
     if six.PY2:
       last_word = last_word.encode("utf-8")
     print("Finished constructing vocabulary of {} total words. Last actual word added: {}".format(self._count, last_word))
-
-    self.special_word_ins = special_word_ins
-    special_vocab = get_special_vocab(self._count, special_words) #[0, len(special_words))
-    self.special_vocab = special_vocab
-    print("Special words and ids:")
-
-    for w in special_vocab._fields:
-      self._word_to_id[w] = self._count
-      print("{}-{}".format(w, self._count))
-      self._word_to_count[w] = -1
-      self._id_to_word[self._count] = w
-      self._count += 1
 
   def word2id(self, word):
     """Returns the id (integer) of a word (string). Returns [UNK] id if word is OOV."""
@@ -242,6 +238,14 @@ class Vocab(object):
   def size(self):
     """Returns the total size of the vocabulary"""
     return self._count
+
+  def addWord(self, word, count=-1):
+    if word not in self._word_to_id:
+      word_id = self._count
+      self._word_to_id[word] = word_id
+      self._word_to_count[word] = count
+      self._id_to_word[word_id] = word
+      self._count += 1
 
   def write_metadata(self, fpath):
     """Writes metadata file for Tensorboard word embedding visualizer as described here:

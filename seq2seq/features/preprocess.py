@@ -10,9 +10,10 @@ import tensorflow as tf
 import click
 import six
 import pyltp
+from collections import OrderedDict
 import seq2seq.features.nlp as NLP
 from seq2seq.data import vocab
-from seq2seq.features import global_vars
+from seq2seq.features import global_vars, utils
 from seq2seq.features import SpecialWords, SpecialWordsIns
 
 logger = logging.getLogger(__name__)
@@ -86,7 +87,49 @@ def get_extend_target_ids(extend_source_ids, source_tokens, target_tokens, targe
       extend_target_ids.append(target_id)
   return extend_target_ids
 
-def get_features(save_path, vocab_cls, pos_cls, ner_cls, tfidf_cls, source_path, target_path=None, delimeter=" ", copy_source_unique=False):
+class Preprocess(object):
+
+  def __init__(self, vocab_path, pos_path, ner_path, tfidf_path, char_path=None, **kwargs):
+    self._vocab_path = vocab_path
+    self._pos_path = pos_path
+    self._ner_path = ner_path
+    self._tfidf_path = tfidf_path
+    self._char_path = char_path
+    self._word_vocab = vocab.Vocab(vocab_path)
+    self._pos_vocab = vocab.Vocab(pos_path)
+    self._ner_vocab = vocab.Vocab(ner_path)
+    self._tfidf_vocab = NLP.Tfidf(tfidf_path, special_words=SpecialWords, default=0.0)
+    self._char_path = None
+    if self._char_path is not None:
+      self._char_cls = vocab.Vocab(self._char_path)
+
+  def get_source_side_features(self, source_lines):
+    pass
+
+  def get_target_side_features(self, target_lines):
+    pass
+
+  def get_aliment_extend_features(self, ):
+    pass
+
+  def get_train_features_from_files(self, parallel_text_path):
+    pass
+
+  def get_infer_features_from_files(self, source_paths):
+    paths = utils.get_dir_or_file_path(source_paths)
+    infer_features_list = []
+    for i, path in enumerate(paths):
+      lines = codecs.open(path, "r", "utf-8")
+      lines = [v.strip() for v in lines]
+      infer_features = self.get_infer_features_given_input(lines)
+      infer_features_list.append(infer_features)
+    return infer_features_list
+
+  def get_infer_features_given_input(self, source_lines):
+    pass
+
+def get_features(save_path, vocab_cls, pos_cls, ner_cls, tfidf_cls, source_path, target_path=None, delimeter=" ",
+                 copy_source_unique=False, source_sentence_split=False, target_sentence_split=False):
 
   """get source features or both(TODO)
   :param save_path:
@@ -96,6 +139,10 @@ def get_features(save_path, vocab_cls, pos_cls, ner_cls, tfidf_cls, source_path,
   :param delimeter:
   :return:
   """
+  '''
+  Add special symbols in every sentences' first pos in SEQUENCE_START and SEQUENCE_END in sentence's end
+  [s0, s1] ->[ SEQUENCE_START s0 SEQUENCE_END, SEQUENCE_START s1 SEQUENCE_END]
+  '''
   fs = codecs.open(source_path, "r", "utf-8")
   ft = codecs.open(target_path, "r", "utf-8")
   source_lines = fs.readlines()
@@ -103,10 +150,22 @@ def get_features(save_path, vocab_cls, pos_cls, ner_cls, tfidf_cls, source_path,
   assert  len(source_lines) == len(target_lines), (len(source_lines), len(target_lines))
   writer = tf.python_io.TFRecordWriter(save_path)
 
+  all_features = []
+
   for source_line, target_line in zip(source_lines, target_lines):
 
-    source_tokens = source_line.strip().split(delimeter)
-    target_tokens = target_line.strip().split(delimeter)
+    source_line = source_line.strip()
+    target_line = target_line.strip()
+    source_tokens = source_line.split(delimeter)
+    target_tokens = target_line.split(delimeter)
+    source_sentences, target_sentences = None, None
+
+    if source_sentence_split is True:
+      source_sentences = list(pyltp.SentenceSplitter.split(source_line))
+    if target_sentence_split is True:
+      target_sentences = list(pyltp.SentenceSplitter.split(target_line))
+    #TO DO: will convert to class and handle every sentence, every word and so on
+
 
     ##get raw source nlp features: words, pos, ner, tfidf
     source_postags = NLP.Postags(source_tokens)
@@ -156,11 +215,12 @@ def get_features(save_path, vocab_cls, pos_cls, ner_cls, tfidf_cls, source_path,
     int64_keys = ["source_ids", "extend_source_ids","source_oov_nums","source_ner_ids", "source_pos_ids", "target_ids", "extend_target_ids", "target_ner_ids"]
     float_keys = ["source_tfidfs"]
     bytes_keys = ["source_ners", "source_postags","source_tokens", "source_oov_list", "target_tokens", "target_ners"]
-
+    features = OrderedDict()
     vars = locals()
     ex = tf.train.Example()
     for key in keys:
       var = vars[key]
+      features[key] = var
       if key in int64_keys:
         if type(var) != list:
           var = [var]
@@ -177,7 +237,11 @@ def get_features(save_path, vocab_cls, pos_cls, ner_cls, tfidf_cls, source_path,
 
     writer.write(ex.SerializeToString())
 
+    all_features.append(features)
+
   writer.close()
+
+  return all_features
 
 def read_and_decode_single_example(filename):
   # first construct a queue containing a list of filenames.
@@ -194,9 +258,7 @@ def read_and_decode_single_example(filename):
   # One needs to describe the format of the objects to be returned
 
   source_keys_to_features = global_vars.source_feature_keys
-
   target_keys_to_features = global_vars.target_feature_keys
-
 
   #tf.FixedLenFeature
   features_cls = {}
@@ -249,7 +311,7 @@ def cli():
 @click.option("--ner_path", type=str)
 @click.option("--tfidf_path", type=str)
 @click.option("--char_path", type=str)
-def handle(source_path, target_path, save_path, vocab_path, copy_source_unique=True,
+def generate_features(source_path, target_path, save_path, vocab_path, copy_source_unique=True,
            pos_path=None, ner_path=None, tfidf_path=None, char_path=None):
 
   word_vocab = vocab.Vocab(vocab_path)
@@ -258,7 +320,9 @@ def handle(source_path, target_path, save_path, vocab_path, copy_source_unique=T
   ner_vocab = vocab.Vocab(ner_path)
   tfidf_vocab = NLP.Tfidf(tfidf_path, special_words=SpecialWords, default=0.0)
 
-  get_features(save_path, word_vocab, pos_vocab,  ner_vocab, tfidf_vocab , source_path, target_path, copy_source_unique=copy_source_unique)
+  features = get_features(save_path, word_vocab, pos_vocab,  ner_vocab, tfidf_vocab , source_path, target_path, copy_source_unique=copy_source_unique)
+  from  pprint import pprint
+  pprint(features)
 
 @click.command()
 @click.argument("load_path")
@@ -312,7 +376,7 @@ def pipeline_debug(load_path):
       print_values(res, keys)
       print("\n")
 
-cli.add_command(handle)
+cli.add_command(generate_features)
 cli.add_command(load_features)
 cli.add_command(pipeline_debug)
 
