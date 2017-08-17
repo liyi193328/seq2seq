@@ -395,15 +395,17 @@ def main(_argv):
   if not FLAGS.input_pipeline_dev:
     raise ValueError("You must specify input_pipeline_dev")
 
+
   ###expand source_files and dev_files
-  train_source_files = FLAGS.input_pipeline_train["params"]["source_files"]
-  train_target_files = FLAGS.input_pipeline_train["params"]["target_files"]
-  FLAGS.input_pipeline_train["params"]["source_files"] = expand_paths(train_source_files)
-  FLAGS.input_pipeline_train["params"]["target_files"] = expand_paths(train_target_files)
-  dev_source_files = FLAGS.input_pipeline_dev["params"]["source_files"]
-  dev_target_files = FLAGS.input_pipeline_dev["params"]["target_files"]
-  FLAGS.input_pipeline_dev["params"]["source_files"] = expand_paths(dev_source_files)
-  FLAGS.input_pipeline_dev["params"]["target_files"] = expand_paths(dev_target_files)
+  if "source_files" in FLAGS.input_pipeline_train["params"]:
+    train_source_files = FLAGS.input_pipeline_train["params"]["source_files"]
+    train_target_files = FLAGS.input_pipeline_train["params"]["target_files"]
+    FLAGS.input_pipeline_train["params"]["source_files"] = expand_paths(train_source_files)
+    FLAGS.input_pipeline_train["params"]["target_files"] = expand_paths(train_target_files)
+    dev_source_files = FLAGS.input_pipeline_dev["params"]["source_files"]
+    dev_target_files = FLAGS.input_pipeline_dev["params"]["target_files"]
+    FLAGS.input_pipeline_dev["params"]["source_files"] = expand_paths(dev_source_files)
+    FLAGS.input_pipeline_dev["params"]["target_files"] = expand_paths(dev_target_files)
 
   tf.logging.info("now flags:")
   tf.logging.info(FLAGS.__dict__["__flags"])

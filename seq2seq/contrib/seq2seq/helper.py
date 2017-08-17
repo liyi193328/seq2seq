@@ -523,11 +523,11 @@ def CopyGenGreedyEmbeddingHelper(GreedyEmbeddingHelper):
   :param GreedyEmbeddingHelper: 
   :return: 
   """
-  def __init__(self, target_vocab_info, *args, *kwargs):
+  def __init__(self, target_vocab_info, *args, **kwargs):
     self._target_vocab_info = target_vocab_info
     self._target_unk_id = target_vocab_info.special_vocab.UNK
     self._target_vocab_size = target_vocab_info.vocab_size
-    super(CopyGenGreedyEmbeddingHelper, self).__init__(*args, *kwargs)
+    super(CopyGenGreedyEmbeddingHelper, self).__init__(*args, **kwargs)
 
   def sample(self, time, outputs, state, name=None):
     del time, state  # unused by sample_fn

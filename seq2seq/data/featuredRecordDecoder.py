@@ -96,14 +96,14 @@ class FeaturedTFExampleDecoder(data_decoder.DataDecoder):
       return features
 
     source_feature_tensors = get_feature_tensor(example, self._source_keys_to_tensor)
-    source_feature_tensors["source_len"] = tf.size(source_feature_tensors["source_tokens"],out_type=tf.int64)
+    source_feature_tensors["source_len"] = tf.size(source_feature_tensors["source_tokens"],out_type=tf.int32)
 
     target_feature_tensors = {}
     have_target = False
     if self._target_feature_keys[0] in example:
       have_target = True
       target_feature_tensors = get_feature_tensor(example, self._target_keys_to_tensor)
-      target_feature_tensors["target_len"] = tf.size(target_feature_tensors["target_tokens"], out_type=tf.int64)
+      target_feature_tensors["target_len"] = tf.size(target_feature_tensors["target_tokens"], out_type=tf.int32)
 
     all_features = merge_dict(source_feature_tensors, target_feature_tensors)
 

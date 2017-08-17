@@ -128,8 +128,8 @@ class Preprocess(object):
   def get_infer_features_given_input(self, source_lines):
     pass
 
-def get_features(save_path, vocab_cls, pos_cls, ner_cls, tfidf_cls, source_path, target_path=None, delimeter=" ",
-                 copy_source_unique=False, source_sentence_split=False, target_sentence_split=False):
+def get_features(parallel_text_path, save_path, vocab_cls, pos_cls, ner_cls, tfidf_cls, delimeter=" ",
+                 copy_source_unique=False, source_sentence_split=False, target_sentence_split=False, tfrecord_out_nums=999):
 
   """get source features or both(TODO)
   :param save_path:
@@ -143,17 +143,24 @@ def get_features(save_path, vocab_cls, pos_cls, ner_cls, tfidf_cls, source_path,
   Add special symbols in every sentences' first pos in SEQUENCE_START and SEQUENCE_END in sentence's end
   [s0, s1] ->[ SEQUENCE_START s0 SEQUENCE_END, SEQUENCE_START s1 SEQUENCE_END]
   '''
-  fs = codecs.open(source_path, "r", "utf-8")
-  ft = codecs.open(target_path, "r", "utf-8")
-  source_lines = fs.readlines()
-  target_lines = ft.readlines()
-  assert  len(source_lines) == len(target_lines), (len(source_lines), len(target_lines))
-  writer = tf.python_io.TFRecordWriter(save_path)
 
+
+  f = codecs.open(parallel_text_path, "r", "utf-8")
   all_features = []
+  cnt = 0
+  writer = None
 
-  for source_line, target_line in zip(source_lines, target_lines):
+  for st in f:
 
+    if cnt == 0:
+      writer = tf.python_io.TFRecordWriter(save_path + ".0")
+    elif (cnt + 1) % tfrecord_out_nums == 0:
+      writer.close()
+      x = (cnt + 1) / tfrecord_out_nums + 1
+      path = save_path + ".{}".format(x)
+      writer = tf.python_io.TFRecordWriter(path)
+
+    source_line, target_line = st.strip().split("\t")
     source_line = source_line.strip()
     target_line = target_line.strip()
     source_tokens = source_line.split(delimeter)
@@ -165,7 +172,6 @@ def get_features(save_path, vocab_cls, pos_cls, ner_cls, tfidf_cls, source_path,
     if target_sentence_split is True:
       target_sentences = list(pyltp.SentenceSplitter.split(target_line))
     #TO DO: will convert to class and handle every sentence, every word and so on
-
 
     ##get raw source nlp features: words, pos, ner, tfidf
     source_postags = NLP.Postags(source_tokens)
@@ -209,9 +215,6 @@ def get_features(save_path, vocab_cls, pos_cls, ner_cls, tfidf_cls, source_path,
 
     keys = source_keys + target_keys
 
-    # keys = ["source_tokens", "source_ids", "extend_source_ids","source_oov_list","source_oov_nums",
-    #         "target_tokens", "target_ids", "extend_target_ids"]
-
     int64_keys = ["source_ids", "extend_source_ids","source_oov_nums","source_ner_ids", "source_pos_ids", "target_ids", "extend_target_ids", "target_ner_ids"]
     float_keys = ["source_tfidfs"]
     bytes_keys = ["source_ners", "source_postags","source_tokens", "source_oov_list", "target_tokens", "target_ners"]
@@ -238,6 +241,8 @@ def get_features(save_path, vocab_cls, pos_cls, ner_cls, tfidf_cls, source_path,
     writer.write(ex.SerializeToString())
 
     all_features.append(features)
+
+    cnt += 1
 
   writer.close()
 
@@ -303,16 +308,16 @@ def cli():
   pass
 
 @click.command()
-@click.argument("source_path")
-@click.argument("target_path")
+@click.argument("parallel_text_path")
 @click.argument("save_path")
 @click.argument("vocab_path")
 @click.option("--pos_path", type=str)
 @click.option("--ner_path", type=str)
 @click.option("--tfidf_path", type=str)
 @click.option("--char_path", type=str)
-def generate_features(source_path, target_path, save_path, vocab_path, copy_source_unique=True,
-           pos_path=None, ner_path=None, tfidf_path=None, char_path=None):
+@click.option("--out_nums", type=int, default=10000, help="record nums every tf record file")
+def generate_features(parallel_text_path, save_path, vocab_path, copy_source_unique=True,
+           pos_path=None, ner_path=None, tfidf_path=None, char_path=None, out_nums=10000):
 
   word_vocab = vocab.Vocab(vocab_path)
   # char_vocab = vocab.Vocab(char_path)
@@ -320,9 +325,10 @@ def generate_features(source_path, target_path, save_path, vocab_path, copy_sour
   ner_vocab = vocab.Vocab(ner_path)
   tfidf_vocab = NLP.Tfidf(tfidf_path, special_words=SpecialWords, default=0.0)
 
-  features = get_features(save_path, word_vocab, pos_vocab,  ner_vocab, tfidf_vocab , source_path, target_path, copy_source_unique=copy_source_unique)
-  from  pprint import pprint
-  pprint(features)
+  features = get_features(parallel_text_path, save_path, word_vocab, pos_vocab,  ner_vocab, tfidf_vocab ,
+                          copy_source_unique=copy_source_unique, tfrecord_out_nums=out_nums)
+  # from  pprint import pprint
+  # pprint(features)
 
 @click.command()
 @click.argument("load_path")

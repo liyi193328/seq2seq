@@ -57,12 +57,20 @@ def cut_sentence(words):
 def Postags(words):
   if type(words) != list:
     words = [words]
+  if six.PY2:
+    if type(words[0]) == unicode:
+      words = [v.encode("utf-8") for v in words]
   postags = list(postagger.postag(words))  # 词性标注
   return postags
 
 def NamedEntityRecogize(words, postags=None):
+  if type(words) != list:
+    words = [words]
+  if six.PY2:
+    words = [v.encode("utf-8") for v in words]
   if postags is None:
     postags = Postags(words)
+
   netags = list(recognizer.recognize(words, postags))
   return netags
 
