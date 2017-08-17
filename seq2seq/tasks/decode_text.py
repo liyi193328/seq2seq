@@ -283,7 +283,11 @@ class DecodeText(InferenceTask):
 
     self.write_buffer_to_disk()
     tf.logging.info("decode text end session")
-    for fout in [self._attn_fout, self._pred_fout]:
+    fs = []
+    if self._attn_path is not None:
+      fs.append(self._attn_fout)
+    fs.append(self._pred_fout)
+    for fout in fs:
      if fout is not None:
       if fout.closed == False:
         fout.close()
