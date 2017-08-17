@@ -346,13 +346,51 @@ class CopyGenSeq2Seq(AttentionSeq2Seq):
     # If we predict the ids also map them back into the vocab and process them
     if "predicted_ids" in predictions.keys():
       vocab_tables = graph_utils.get_dict_from_collection("vocab_tables")
+      predicted_ids = predictions["predicted_ids"]
+      source_oov_list = features["source_oov_list"]
+
       target_id_to_vocab = vocab_tables["target_id_to_vocab"]
       predicted_tokens = target_id_to_vocab.lookup(
           tf.to_int64(predictions["predicted_ids"]))
+
+      batch_size = predicted_ids.get_shape().as_list()[0] or tf.shape(predicted_ids)[0]
+
+      with tf.variable_scope('copy_token_ids'):
+        def should_continue(now_s, max_s, *args, **kwargs):
+          return tf.less(now_s, max_s)
+
+        def body(now_s, batch_size, copy_predicted_tokens, predicted_ids, predicted_tokens, source_oov_list):
+          row_tokens = predicted_tokens[now_s, :]
+          row_ids = predicted_ids[now_s, :]
+          source_oovs = source_oov_list[now_s, :]
+          copy_row_ids = row_ids - self._target_origin_vocab_size
+
+          def fn(x):
+            row_id, token = x
+            return tf.cond(tf.greater_equal(row_id, 0), lambda : source_oovs[row_id], lambda : token)
+          copy_row_tokens = tf.map_fn(fn, (copy_row_ids, row_tokens), dtype=(tf.string))
+          # copy_indices = tf.cast( tf.where(tf.greater_equal(copy_row_ids, 0)), tf.int32 )
+          # copy_ids = tf.reshape( tf.gather(copy_row_ids,  copy_indices), [-1])
+          # copy_tokens = tf.reshape( tf.gather(source_oovs, copy_ids), [-1])
+          # copy_tokens_placement = tf.scatter_nd(copy_indices, copy_tokens, tf.shape(row_tokens))
+          # new_row_tokens = tf.where(tf.greater_equal(copy_row_ids, 0), copy_tokens_placement, row_tokens)
+          copy_predicted_tokens = copy_predicted_tokens.write(now_s, copy_row_tokens)
+          return now_s + 1, batch_size, copy_predicted_tokens, predicted_ids, predicted_tokens, source_oov_list
+
+        now_s = tf.constant(0)
+        copy_predicted_tokens = tf.TensorArray(tf.string, size=batch_size, dynamic_size=True)
+        _, _, copy_predicted_tokens, _, _, _ = tf.while_loop(
+          should_continue,
+          body,
+          loop_vars=[now_s, batch_size, copy_predicted_tokens, predicted_ids, predicted_tokens, source_oov_list]
+        )
+        copy_predicted_tokens = copy_predicted_tokens.stack()
+
       # Raw predicted tokens
-      predictions["predicted_tokens"] = predicted_tokens
+      predictions["predicted_tokens"] = copy_predicted_tokens
 
     return predictions
+
   def compute_loss(self, decoder_output, _features, labels):
     """Computes the loss for this model.
 
