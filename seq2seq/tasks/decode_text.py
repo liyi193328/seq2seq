@@ -188,14 +188,17 @@ class DecodeText(InferenceTask):
 
   def write_buffer_to_disk(self):
     self._pred_fout = codecs.open(self._save_pred_path, "a", "utf-8")
-    self._attn_fout = codecs.open(self._attn_path, "ab")
+    if self._attn_path is not None:
+      self._attn_fout = codecs.open(self._attn_path, "ab")
 
     for infer_out in self.infer_outs:
       self._pred_fout.write(infer_out)
-      pickle.dump( self.attn_scores_list, self._attn_fout )
-      self.attn_scores_list = []
+      if self._attn_path is not None:
+        pickle.dump( self.attn_scores_list, self._attn_fout )
+        self.attn_scores_list = []
     self._pred_fout.close()
-    self._attn_fout.close()
+    if self._attn_path is not None:
+      self._attn_fout.close()
     self.sample_cnt = 0
     self.infer_outs = []
     tf.logging.info("write times: {}".format(self.write_cnt))

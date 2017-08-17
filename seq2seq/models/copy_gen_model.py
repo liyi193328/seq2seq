@@ -17,17 +17,19 @@ from pydoc import locate
 import os
 import sys
 import shutil
+import collections
 import tensorflow as tf
 from seq2seq import decoders
 from seq2seq.data import vocab
 from seq2seq.models import AttentionSeq2Seq
 from seq2seq import graph_utils
-from seq2seq.features.aliments import get_tensor_aliments
 from seq2seq.graph_utils import templatemethod
 from pydoc import locate
 from seq2seq import losses as seq2seq_losses
 from seq2seq.models import bridges
 from seq2seq.contrib.seq2seq import helper as tf_decode_helper
+from seq2seq.models.model_base import ModelBase, _flatten_dict
+from seq2seq.contrib.seq2seq.decoder import _transpose_batch_time
 
 class CopyGenSeq2Seq(AttentionSeq2Seq):
 
@@ -106,9 +108,9 @@ class CopyGenSeq2Seq(AttentionSeq2Seq):
                                           self.params["source.max_seq_len"])
 
     # Look up the source ids in the vocabulary
-
-    graph_source_ids = self._source_vocab_to_id.lookup(features["source_tokens"]) #every sequence contains sequence end flag
-    tf.assert_equal(graph_source_ids, features["source_ids"])
+    # graph_source_ids = self._source_vocab_to_id.lookup(features["source_tokens"]) #every sequence contains sequence end flag
+    # assert_source_ids_equal = tf.assert_equal(graph_source_ids, features["source_ids"], data = [graph_source_ids, features["source_ids"] ], summarize=30)
+    # with tf.control_dependencies( [ assert_source_ids_equal ] ):
 
     features["source_oov_nums"] = tf.cast(features["source_oov_nums"], tf.int32)
     features["source_max_oov_num"] = tf.reduce_max(features["source_oov_nums"])
@@ -134,6 +136,7 @@ class CopyGenSeq2Seq(AttentionSeq2Seq):
     if labels is None:
       return features, None
 
+
     labels = labels.copy()
 
     # Slices targets to max length
@@ -144,8 +147,9 @@ class CopyGenSeq2Seq(AttentionSeq2Seq):
                                         self.params["target.max_seq_len"])
 
     # Look up the target ids in the vocabulary
-    graph_target_ids = self._target_vocab_to_id.lookup(labels["target_tokens"])
-    tf.assert_equal(graph_target_ids, labels["target_ids"])
+    # graph_target_ids = self._target_vocab_to_id.lookup(labels["target_tokens"])
+    # assert_target_ids_equal = tf.assert_equal(graph_target_ids, labels["target_ids"], data=[graph_target_ids, labels["target_ids"]], summarize=graph_target_ids.get_shape().as_list()[0])
+    # with tf.control_dependencies( [ assert_target_ids_equal ] )
 
     labels["target_len"] = tf.to_int32(labels["target_len"])
     tf.summary.histogram("target_len", tf.to_float(labels["target_len"]))
@@ -273,8 +277,8 @@ class CopyGenSeq2Seq(AttentionSeq2Seq):
     batch_size = vocab_dists.get_shape().as_list()[1] or tf.shape(vocab_dists)[1]
     batch_source_max_oovs = tf.reduce_max(features["source_oov_nums"])
     extended_vsize = vocab_total_size + batch_source_max_oovs
-    tf.assert_equal(tf.shape(vocab_dists)[0], tf.shape(attn_dists)[0])
-    tf.assert_equal(tf.shape(vocab_dists)[0], tf.shape(p_gens)[0])
+    # tf.assert_equal(tf.shape(vocab_dists)[0], tf.shape(attn_dists)[0])
+    # tf.assert_equal(tf.shape(vocab_dists)[0], tf.shape(p_gens)[0])
 
     final_dists = tf.TensorArray(tf.float32, size=max_t, dynamic_size=True)
 
@@ -315,6 +319,40 @@ class CopyGenSeq2Seq(AttentionSeq2Seq):
       )
       return final_dists
 
+  def _create_predictions(self, decoder_output, features, labels, losses=None):
+    """Creates the dictionary of predictions that is returned by the model.
+    """
+    predictions = {}
+
+    # Add features and, if available, labels to predictions
+    predictions.update(_flatten_dict({"features": features}))
+    if labels is not None:
+      predictions.update(_flatten_dict({"labels": labels}))
+
+    if losses is not None:
+      predictions["losses"] = _transpose_batch_time(losses)
+
+    # Decoders returns output in time-major form [T, B, ...]
+    # Here we transpose everything back to batch-major for the user
+    output_dict = collections.OrderedDict(
+        zip(decoder_output._fields, decoder_output))
+    decoder_output_flat = _flatten_dict(output_dict)
+    decoder_output_flat = {
+        k: _transpose_batch_time(v)
+        for k, v in decoder_output_flat.items()
+    }
+    predictions.update(decoder_output_flat)
+
+    # If we predict the ids also map them back into the vocab and process them
+    if "predicted_ids" in predictions.keys():
+      vocab_tables = graph_utils.get_dict_from_collection("vocab_tables")
+      target_id_to_vocab = vocab_tables["target_id_to_vocab"]
+      predicted_tokens = target_id_to_vocab.lookup(
+          tf.to_int64(predictions["predicted_ids"]))
+      # Raw predicted tokens
+      predictions["predicted_tokens"] = predicted_tokens
+
+    return predictions
   def compute_loss(self, decoder_output, _features, labels):
     """Computes the loss for this model.
 
