@@ -31,12 +31,14 @@ from seq2seq.contrib.seq2seq import helper as tf_decode_helper
 
 class CopyGenSeq2Seq(AttentionSeq2Seq):
 
-  def __init__(self,  params, mode, vocab_instance, pointer_gen = True, coverage = True, name="copy_gen_seq2seq"):
+  def __init__(self,  params, mode, vocab_instance=None, pointer_gen = True, coverage = True, name="copy_gen_seq2seq"):
 
     self._pointer_gen = pointer_gen
     self._coverage = coverage
     self._vocab_instance = vocab_instance
     super(CopyGenSeq2Seq, self).__init__(params, mode, name) #final self._params will be the params override the default_params
+    if vocab_instance is None:
+      self._vocab_instance = vocab.Vocab(self.params["vocab_source"])
 
   @staticmethod
   def default_params():

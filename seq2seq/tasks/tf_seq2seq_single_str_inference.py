@@ -22,6 +22,7 @@ class DecodeOnce(InferenceTask):
   def default_params():
     return {}
 
+
   def before_run(self, _run_context):
     fetches = {}
     fetches["predicted_tokens"] = self._predictions["predicted_tokens"]
