@@ -46,6 +46,32 @@ def convert_token_file_to_char(token_file, save_path, delimetor=" "):
   fin.close()
   fout.close()
 
+@click.command()
+@click.argument("parallel_token_file")
+@click.argument("save_path")
+def convert_parallel(parallel_token_file, save_path, delimetor=" "):
+  print("converting {} to char format {}".format(parallel_token_file, save_path))
+  fin = codecs.open(parallel_token_file, "r", "utf-8")
+  fout = codecs.open(save_path, "w", "utf-8")
+  for line in fin:
+    s , t = line.strip().split("\t")
+    s = s.strip()
+    t = t.strip()
+
+    def get_char_list(st):
+      tokens = st.split(" ")
+      char_list = []
+      for token in tokens:
+        char_list.extend(list(token))
+      return char_list
+    char_s = get_char_list(s)
+    char_t = get_char_list(t)
+    cs = delimetor.join(char_s)
+    ct = delimetor.join(char_t)
+    fout.write(cs + "\t" + ct + "\n")
+  fin.close()
+  fout.close()
+
 @click.command("char_vocab")
 @click.argument("source_path_or_dir")
 @click.argument("char_vocab_path")
@@ -74,6 +100,7 @@ def get_char_vocab(source_path_or_dir, char_vocab_path):
 
 cli.add_command(convert_dir_or_path)
 cli.add_command(get_char_vocab)
+cli.add_command(convert_parallel)
 
 if __name__ == "__main__":
   cli()

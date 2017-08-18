@@ -81,3 +81,12 @@ def merge_dir(dir, save_path, suffix=".txt"):
       for line in lines:
         fout.write(line)
   fout.close()
+
+def merge_dict(dict_list):
+  d = {}
+  for x in dict_list:
+    for key in x:
+      if key in d:
+        raise ValueError("{} overlap!!!".format(key))
+      d[key] = x[key]
+  return d

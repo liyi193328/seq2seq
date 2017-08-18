@@ -22,12 +22,13 @@ from __future__ import unicode_literals
 
 import abc
 import os
+import pickle
 
 import numpy as np
 import six
 import yaml
 
-
+import codecs
 import tensorflow as tf
 from tensorflow.python.training.basic_session_run_hooks import SecondOrStepTimer  # pylint: disable=E0611
 from tensorflow.python.training import session_manager # pylint: disable=E0611
@@ -204,7 +205,6 @@ class TrainSampleHook(TrainingHook):
     self._iter_count = 0
     self._global_step = tf.train.get_global_step()
     self._pred_dict = graph_utils.get_dict_from_collection("predictions")
-    os.umask(0)
     # Create the sample directory
     if self._sample_dir is not None:
       gfile.MakeDirs(self._sample_dir)
@@ -249,9 +249,8 @@ class TrainSampleHook(TrainingHook):
     if self._sample_dir:
       filepath = os.path.join(self._sample_dir,
                               "samples_{:06d}.txt".format(step))
-      os.umask(0)
-      # with gfile.GFile(filepath, "w") as file:
-      #   file.write(result_str)
+      with gfile.GFile(filepath, "w") as file:
+        file.write(result_str)
     self._timer.update_last_triggered_step(self._iter_count - 1)
 
 
@@ -404,9 +403,49 @@ class SyncReplicasOptimizerHook(TrainingHook):
       self._q_runner.create_threads(
           session, coord=coord, daemon=True, start=True)
 
+class TrainDebugHook(TrainingHook):
+
+  def __init__(self, *args, **kwargs):
+    super(TrainDebugHook, self).__init__(*args, **kwargs)
+    self._name_list = self.params["name_list"]
+
+  @staticmethod
+  def default_params():
+    return {
+      "name_list": None,
+      "output_path": None
+    }
+
+  def begin(self):
+    self._global_step = tf.train.get_global_step()
+    self._debug_info = graph_utils.get_dict_from_collection("debug_info")
+    if self._name_list is None:
+      self._name_list = list(self._debug_info.keys())
+    output_dir = os.path.dirname(self.params["output_path"])
+    if os.path.exists(output_dir) == False:
+      os.makedirs(output_dir)
+
+  def before_run(self, _run_context):
+    fetches = {}
+    for tensor_name in self._name_list:
+      fetches[tensor_name] = self._debug_info[tensor_name]
+    return tf.train.SessionRunArgs([fetches, self._global_step])
+
+  def after_run(self, _run_context, run_values):
+    result_dict, step = run_values.results
+    path = self.params["output_path"] + "." + str(step)
+    f = codecs.open(path, "wb")
+    pickle.dump(result_dict, f)
+    f.close()
+    tf.logging.info("write {} to {}".format(self.params["name_list"], self.params["output_path"]))
+
+    # # Convert dict of lists to list of dicts
+    # result_dicts = [
+    #     dict(zip(result_dict, t)) for t in zip(*result_dict.values())
+    # ]
 
 class EvaluationSaveSampleHook(EvalutionHook):
-  """Occasionally samples predictions from the training run and prints them.
+  """Occasionally samples predictions from the evalution run and prints them.
 
   Params:
     every_n_secs: Sample predictions every N seconds.
@@ -449,12 +488,13 @@ class EvaluationSaveSampleHook(EvalutionHook):
     # Create the sample directory
     if self._evalution_result_dir is not None:
       if os.path.exists(self._evalution_result_dir) is False:
-        gfile.MakeDirs(self._evalution_result_dir)
-        os.chmod(self._evalution_result_dir, 777)
+        os.makedirs(self._evalution_result_dir)
+        self._filepath = os.path.join(self._evalution_result_dir,
+                                "eval_samples_{:06d}.txt".format(self._global_step))
+        self._fout = codecs.open(self._filepath, "w", "utf-8")
 
   def before_run(self, _run_context):
     tf.logging.info("eval {}_th batch start...".format(self._iter_count))
-    self._iter_count += 1
     fetches = {
           "source_tokens": self._features["source_tokens"],
           "predicted_tokens": self._pred_dict["predicted_tokens"],
@@ -466,7 +506,7 @@ class EvaluationSaveSampleHook(EvalutionHook):
   def after_run(self, _run_context, run_values):
 
     tf.logging.info("eval {}_th batch end!".format(self._iter_count))
-
+    self._iter_count += 1
     result_dict, step = run_values.results
     if self._current_global_step is None:
       self._eval_str += "Eval samples followed by Target @ Step {}\n".format(step)
@@ -475,7 +515,6 @@ class EvaluationSaveSampleHook(EvalutionHook):
       result_dicts = [
           dict(zip(result_dict, t)) for t in zip(*result_dict.values())
       ]
-
       # Print results
       result_str = self._eval_str
       for result in result_dicts:
@@ -492,21 +531,13 @@ class EvaluationSaveSampleHook(EvalutionHook):
 
       self._eval_str = result_str
       if self._evalution_result_dir:
-        filepath = os.path.join(self._evalution_result_dir,
-                                "eval_samples_{:06d}.txt".format(step))
-        with gfile.GFile(filepath, "w") as file:
-          file.write(result_str)
+          self._fout.write(result_str)
 
       self._current_global_step = step
 
-  # def end(self, sess):
-  #   result_str = self._eval_str
-  #   result_str += ("=" * 100) + "\n\n"
-  #   # tf.logging.info(result_str)
-  #   if self._evalution_result_dir:
-  #     filepath = os.path.join(self._evalution_result_dir,
-  #                             "eval_samples_{:06d}.txt".format(self._current_global_step))
-  #     with gfile.GFile(filepath, "w") as file:
-  #         file.write(result_str)
-  #   self._eval_str = ""
-  #   self._current_global_step = None
+  def end(self, sess):
+    result_str = self._eval_str
+    result_str += ("=" * 100) + "\n\n"
+    self._fout.write(result_str)
+    self._eval_str = ""
+    self._current_global_step = None

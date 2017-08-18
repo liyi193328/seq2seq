@@ -107,6 +107,12 @@ tf.flags.DEFINE_integer("eval_every_n_steps", 1000,
 tf.flags.DEFINE_integer("set_eval_node", None,
                         "if not None, eval worker's index(0 is chief worker, so it must > 0)")
 
+
+#Debug flags
+tf.flags.DEFINE_boolean("debug", False, "if debug, add debug_hook")
+tf.flags.DEFINE_string("debug_dump_root", None, "debug root path")
+tf.flags.DEFINE_string("ui_type", "curses", "[curses|readline]")
+
 # RunConfig Flags
 tf.flags.DEFINE_integer("tf_random_seed", None,
                         """Random seed for TensorFlow initializers. Setting
@@ -202,14 +208,11 @@ def get_distributed_schedule(config):
 
     if FLAGS.cloud is True:
       if FLAGS.schedule == "default":
-
         if not config.task_type:
             raise ValueError('Must specify a schedule')
-
         if FLAGS.set_eval_node is not None and config.task_id == FLAGS.set_eval_node:
           if config.task_type == run_config.TaskType.WORKER:
             return "continuous_eval"
-
         if config.is_chief:
             # TODO(rhaertel): handle the case where there is more than one master
             # or explicitly disallow such a case.
@@ -225,7 +228,8 @@ def get_distributed_schedule(config):
         return FLAGS.schedule
 
     else: #local
-        return "continuous_train_and_eval"
+        # return "continuous_train_and_eval"
+        return FLAGS.schedule
 
 
 def create_experiment(output_dir):
@@ -295,6 +299,14 @@ def create_experiment(output_dir):
   #     params=FLAGS.model_params)
 
 
+  if FLAGS.debug:
+    from tensorflow.python import debug as tf_debug
+    # debug_hook = tf_debug.LocalCLIDebugHook(ui_type=FLAGS.ui_type)
+    if os.path.exists(FLAGS.debug_dump_root) == False:
+      os.makedirs(FLAGS.debug_dump_root)
+    debug_hook = tf_debug.DumpingDebugHook(FLAGS.debug_dump_root)
+    # debug_hook.add_tensor_filter("my")
+
   # Create train hooks
   train_hooks = []
   for dict_ in FLAGS.hooks:
@@ -303,6 +315,8 @@ def create_experiment(output_dir):
         model_dir=estimator.model_dir,
         run_config=config)
     train_hooks.append(hook)
+  if FLAGS.debug:
+    train_hooks.append(debug_hook)
 
   #Create eval hooks
   eval_hooks = []
@@ -313,8 +327,9 @@ def create_experiment(output_dir):
               model_dir=estimator.model_dir,
               run_config=config)
           eval_hooks.append(hook)
-          
-  # eval_hooks = None
+
+  if FLAGS.debug:
+    eval_hooks.append(debug_hook)
 
   # Create metrics
   eval_metrics = {}

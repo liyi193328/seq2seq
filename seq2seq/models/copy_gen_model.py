@@ -134,6 +134,8 @@ class CopyGenSeq2Seq(AttentionSeq2Seq):
     if labels is None:
       return features, None
 
+    if self.mode == tf.contrib.learn.ModeKeys.INFER:
+      return features, None
 
     labels = labels.copy()
 
@@ -269,23 +271,27 @@ class CopyGenSeq2Seq(AttentionSeq2Seq):
     attn_dists = decoder_output.attention_scores
     p_gens = decoder_output.pgens
 
-    vocab_total_size = self.source_vocab_info.total_size
+    source_vocab_total_size = self.source_vocab_info.total_size
 
     max_t = tf.shape(vocab_dists)[0]
     batch_size = vocab_dists.get_shape().as_list()[1] or tf.shape(vocab_dists)[1]
     batch_source_max_oovs = tf.reduce_max(features["source_oov_nums"])
-    extended_vsize = vocab_total_size + batch_source_max_oovs
+    extended_vsize = source_vocab_total_size + batch_source_max_oovs
     # tf.assert_equal(tf.shape(vocab_dists)[0], tf.shape(attn_dists)[0])
     # tf.assert_equal(tf.shape(vocab_dists)[0], tf.shape(p_gens)[0])
 
     final_dists = tf.TensorArray(tf.float32, size=max_t, dynamic_size=True)
+    attn_projected_dists = tf.TensorArray(tf.float32, size=max_t, dynamic_size=True)
+
+    source_len = features["source_len"]
+    source_mask = tf.sequence_mask(source_len, maxlen=tf.reduce_max(source_len), name="source_mask")
 
     with tf.variable_scope('final_distribution'):
 
       def should_continue(now_t, max_t, *args, **kwargs):
         return tf.less(now_t, max_t)
 
-      def body(t, max_t, final_dists, *args, **kwargs):
+      def body(t, max_t, final_dists, attn_projected_dists, *args, **kwargs):
         p_gen = p_gens[t,:]
         vocab_dist = vocab_dists[t, :, :]
         attn_dist = attn_dists[t, :, :]
@@ -296,26 +302,30 @@ class CopyGenSeq2Seq(AttentionSeq2Seq):
         batch_nums = tf.range(0, limit=batch_size, dtype=tf.int32)
         batch_nums = tf.expand_dims(batch_nums, 1)
         attn_len = tf.shape(features["source_ids"])[1]
-        batch_nums =  tf.tile(batch_nums, [1, attn_len])
+        batch_nums =  tf.tile(batch_nums, [1, attn_len]) #[ [0,1,2], [0,1,2], ..., ]
         indices = tf.stack( ( batch_nums, tf.to_int32(features["extend_source_ids"]) ), axis=2)
         final_shapes = [batch_size, extended_vsize]
         #place attend score to corresponding id(extend): total_vocab is 10, extend_source_ids=[1,11, 12, 11, 3], attn_scores=[0.1, 0.2, 0.4, 0.25, 0.05]
         #place the 1's score 0.1 to 1th index value, index 11th value is 0.2,..., the same word id 's properbility is summed
         attn_dist_projected = tf.scatter_nd(indices, attn_dist, final_shapes)
         final_dist = attn_dist_projected + vocab_dist_extended #add copy(attn) score to
+
         #avoid nan
-        final_dist += tf.float32.min
+        final_dist += tf.ones_like(final_dist) * sys.float_info.epsilon
         final_dists = final_dists.write(t, final_dist)
-        return t+1, max_t, final_dists
+
+        attn_projected_dists = attn_projected_dists.write(t, attn_dist_projected)
+
+        return t+1, max_t, final_dists, attn_projected_dists
 
       now_t = tf.constant(0)
 
-      _, _, final_dists = tf.while_loop(
+      _, _, final_dists, attn_projected_dists = tf.while_loop(
         should_continue,
         body,
-        loop_vars=[now_t, max_t, final_dists]
+        loop_vars=[now_t, max_t, final_dists, attn_projected_dists]
       )
-      return final_dists
+      return final_dists, attn_projected_dists
 
   def _create_predictions(self, decoder_output, features, labels, losses=None):
     """Creates the dictionary of predictions that is returned by the model.
@@ -358,11 +368,10 @@ class CopyGenSeq2Seq(AttentionSeq2Seq):
           return tf.less(now_s, max_s)
 
         def body(now_s, batch_size, copy_predicted_tokens, predicted_ids, predicted_tokens, source_oov_list):
-          row_tokens = predicted_tokens[now_s, :]
-          row_ids = predicted_ids[now_s, :]
-          source_oovs = source_oov_list[now_s, :]
+          row_tokens = tf.reshape( predicted_tokens[now_s, :], [-1])
+          row_ids = tf.reshape( predicted_ids[now_s, :], [-1])
+          source_oovs = tf.reshape( source_oov_list[now_s, :], [-1])
           copy_row_ids = row_ids - self._target_origin_vocab_size
-
           def fn(x):
             row_id, token = x
             return tf.cond(tf.greater_equal(row_id, 0), lambda : source_oovs[row_id], lambda : token)
@@ -399,21 +408,35 @@ class CopyGenSeq2Seq(AttentionSeq2Seq):
     # Calculate loss per example-timestep of shape [B, T]
 
 
-    final_dists = self._calc_final_dist(decoder_output, _features)
-    final_dists = final_dists.stack() #
+    final_dists, attn_projected_dists = self._calc_final_dist(decoder_output, _features)
+    final_dists = final_dists.stack() # T * B * D
+    attn_projected_dists = attn_projected_dists.stack()
 
-    # losses = seq2seq_losses.cross_entropy_sequence_loss(
-    #     logits=decoder_output.logits[:, :, :],
-    #     targets=tf.transpose(labels["target_ids"][:, 1:], [1, 0]),
-    #     sequence_length=labels["target_len"] - 1)
-    targets = tf.transpose(labels["extend_target_ids"][:, 1:], [1, 0])
-    final_dists = tf.Print(final_dists, [tf.shape(final_dists)], message="final_dists shape:")
-    targets = tf.Print(targets, [targets], message="extend_target_ids shape:")
+    targets = tf.transpose(labels["extend_target_ids"][:, 1:], [1, 0]) # T * B
+
+    # final_dists = tf.Print(final_dists, [tf.shape(final_dists)], message="final_dists shape:")
+    # targets = tf.Print(targets, [tf.shape(targets)], message="extend_target_ids shape:")
+
+    debug_info = {}
+    vocab_dists = decoder_output.logits
+    attn_dists = decoder_output.attention_scores
+    p_gens = decoder_output.pgens
+
+    debug_info["source_tokens"] = _features["source_tokens"]
+    debug_info["source_len"] = _features["source_len"]
+    debug_info["target_tokens"] = labels["target_tokens"]
+
+    debug_info["final_dists"] = final_dists
+    debug_info["vocab_dists"] = vocab_dists
+    debug_info["attn_dists"] = attn_dists
+    debug_info["p_gens"] = p_gens
+    debug_info["attn_projected_dists"] = attn_projected_dists
+    graph_utils.add_dict_to_collection(debug_info, "debug_info")
 
     losses = seq2seq_losses.cross_entropy_sequence_loss(
         logits=final_dists,
         targets=targets,
-        sequence_length=labels["target_len"] - 1)
+        sequence_length=labels["target_len"] - 1) #T * B
 
     # Calculate the average log perplexity
     loss = tf.reduce_sum(losses) / tf.to_float(

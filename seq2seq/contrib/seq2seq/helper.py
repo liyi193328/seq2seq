@@ -518,7 +518,7 @@ class GreedyEmbeddingHelper(Helper):
         lambda: self._embedding_fn(sample_ids))
     return (finished, next_inputs, state)
 
-def CopyGenGreedyEmbeddingHelper(GreedyEmbeddingHelper):
+class CopyGenGreedyEmbeddingHelper(GreedyEmbeddingHelper):
   """if argmax's id 
   :param GreedyEmbeddingHelper: 
   :return: 

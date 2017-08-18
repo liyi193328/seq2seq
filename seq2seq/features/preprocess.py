@@ -89,44 +89,156 @@ def get_extend_target_ids(extend_source_ids, source_tokens, target_tokens, targe
 
 class Preprocess(object):
 
-  def __init__(self, vocab_path, pos_path, ner_path, tfidf_path, char_path=None, **kwargs):
+  def __init__(self, vocab_path, pos_path, ner_path, tfidf_path, char_path=None, source_delimeter=" ", target_delimeter=" ", **kwargs):
     self._vocab_path = vocab_path
     self._pos_path = pos_path
     self._ner_path = ner_path
     self._tfidf_path = tfidf_path
     self._char_path = char_path
-    self._word_vocab = vocab.Vocab(vocab_path)
-    self._pos_vocab = vocab.Vocab(pos_path)
-    self._ner_vocab = vocab.Vocab(ner_path)
-    self._tfidf_vocab = NLP.Tfidf(tfidf_path, special_words=SpecialWords, default=0.0)
+    self._vocab_cls = vocab.Vocab(vocab_path)
+    self._pos_cls = vocab.Vocab(pos_path)
+    self._ner_cls = vocab.Vocab(ner_path)
+    self._tfidf_cls = NLP.Tfidf(tfidf_path, special_words=SpecialWords, default=0.0)
+    self._source_delimeter = source_delimeter
+    self._target_delimeter = target_delimeter
     self._char_path = None
     if self._char_path is not None:
       self._char_cls = vocab.Vocab(self._char_path)
 
-  def get_source_side_features(self, source_lines):
-    pass
+  def get_features(self, dir_or_path, save_path, mode, tfrecord_out_nums=10000):
+    paths = utils.get_dir_or_file_path(dir_or_path)
+    self._sample_cnt = 0
+    if os.path.exists(os.path.dirname(save_path)) == False:
+      os.makedirs(os.path.dirname(save_path))
 
-  def get_target_side_features(self, target_lines):
-    pass
+    writer = tf.python_io.TFRecordWriter(save_path + ".0")
 
-  def get_aliment_extend_features(self, ):
-    pass
+    if mode == "train" or mode == "eval":
+      for i, path in enumerate(paths):
+        f = codecs.open(path, "r", "utf-8")
+        for line in f:
 
-  def get_train_features_from_files(self, parallel_text_path):
-    pass
+          if self._sample_cnt % tfrecord_out_nums == 0:
+            if self._sample_cnt > 0:
+              writer.close()
+            writer = tf.python_io.TFRecordWriter(save_path + ".{}".format(self._sample_cnt / tfrecord_out_nums))
 
-  def get_infer_features_from_files(self, source_paths):
+          line = line.strip()
+          source, target = line.split("\t")
+          source_tokens = source.strip().split(self._source_delimeter)
+          target_tokens = target.strip().split(self._target_delimeter)
+          source_features = self.get_source_side_features(source_tokens)
+          target_features = self.get_target_side_features(source_features, target_tokens)
+          aliment_features = self.get_aliment_extend_features(source_features, target_features)
+          example_features = utils.merge_dict([source_features, aliment_features, target_features])
+          example = self.convert_to_tfrecord_example(example_features)
+          self._sample_cnt += 1
+          writer.write(example.SerializeToString())
+      writer.close()
+
+  def get_source_side_features(self, source_tokens, add_end_symbol=SpecialWordsIns.SEQUENCE_END, ):
+
+    ##get raw source nlp features: words, pos, ner, tfidf
+    source_postags = NLP.Postags(source_tokens)
+    source_ners = NLP.NamedEntityRecogize(source_tokens, source_postags)
+
+    source_tokens.append(add_end_symbol)  # special id
+    source_ners.append(add_end_symbol)
+    source_postags.append(add_end_symbol)
+
+    source_ids = words_to_id(source_tokens, self._vocab_cls)
+    source_ner_ids = [self._ner_cls.word2id(ner) for ner in source_ners]
+    source_pos_ids = [self._pos_cls.word2id(pos) for pos in source_postags]
+    source_tfidfs = self._tfidf_cls.encode(source_tokens)
+
+    extend_source_ids, source_oov_list = get_extend_source_ids(source_tokens, source_ids, self._vocab_cls)
+    source_oov_nums = len(source_oov_list)
+
+    vars = locals()
+    source_features = {}
+    # source_keys = [
+    #   "source_tokens", "source_ids", "extend_source_ids","source_oov_list","source_oov_nums",
+    #   "source_ner_ids", "source_pos_ids", "source_tfidfs", "source_ners", "source_postags"
+    # ]
+    source_keys = list( global_vars.source_feature_keys )
+    for key in source_keys:
+      source_features[key] = vars[key]
+
+    return source_features
+
+  def get_aliment_extend_features(self, source_features, target_features):
+    source_tokens, target_tokens = source_features["source_token"], target_features["target_token"]
+    aliment_features = {}
+    aliment = []
+    for target_token in target_tokens:
+      if target_token in source_tokens:
+        aliment.append(source_tokens.index(target_token))
+      else:
+        aliment.append(-1)
+    aliment_features["aliment"] = aliment
+    return aliment_features
+
+  def get_target_side_features(self, source_features, target_tokens, add_start_symbol=SpecialWordsIns.SEQUENCE_START, add_end_symbol=SpecialWordsIns.SEQUENCE_END):
+
+    target_features = {}
+    ##get raw target nlp features: words, ner
+    target_ners = NLP.NamedEntityRecogize(target_tokens)
+    target_tokens.insert(0, add_start_symbol)
+    target_tokens.append(add_end_symbol)
+    target_ners.insert(0, add_start_symbol)
+    target_ners.append(add_end_symbol)
+
+    target_ids = words_to_id(target_tokens, self._vocab_cls)
+    extend_target_ids = get_extend_target_ids(source_features["extend_source_ids"], source_features["source_tokens"], target_tokens, target_ids, self._vocab_cls.special_vocab.UNK)
+    vars = locals()
+    target_keys = global_vars.target_feature_keys
+    for key in target_keys:
+      target_features[key] = vars[key]
+    return target_features
+
+  def convert_to_tfrecord_example(self, all_features):
+    int64_keys = ["source_ids", "extend_source_ids","source_oov_nums","source_ner_ids", "source_pos_ids", "target_ids", "extend_target_ids", "target_ner_ids", "aliment"]
+    float_keys = ["source_tfidfs"]
+    bytes_keys = ["source_ners", "source_postags","source_tokens", "source_oov_list", "target_tokens", "target_ners"]
+    features = OrderedDict()
+    vars = locals()
+    ex = tf.train.Example()
+    for key in all_features:
+      var = vars[key]
+      features[key] = var
+      if key in int64_keys:
+        if type(var) != list:
+          var = [var]
+        ex.features.feature[key].int64_list.value.extend(var)
+      elif key in float_keys:
+        if type(var) != list:
+          var = [var]
+        ex.features.feature[key].float_list.value.extend(var)
+      elif key in bytes_keys:
+        s = join_str(var).encode("utf-8")
+        ex.features.feature[key].bytes_list.value.extend([s])
+      else:
+        raise ValueError("{} not in int64_keys,float_keys, bytes_keys".format(key))
+    return ex
+
+  def get_infer_features_from_files(self, source_paths, save_path):
     paths = utils.get_dir_or_file_path(source_paths)
     infer_features_list = []
+    if os.path.exists(os.path.dirname(save_path)) == False:
+      os.makedirs(os.path.dirname(save_path))
+    writer = tf.python_io.TFRecordWriter(save_path)
+    source_features_list = []
     for i, path in enumerate(paths):
       lines = codecs.open(path, "r", "utf-8")
-      lines = [v.strip() for v in lines]
-      infer_features = self.get_infer_features_given_input(lines)
-      infer_features_list.append(infer_features)
-    return infer_features_list
+      for line in lines:
+        line = line.strip()
+        source_tokens = line.split(self._source_delimeter)
+        source_features = self.get_source_side_features(source_tokens)
+        example = self.convert_to_tfrecord_example(source_features)
+        writer.write(example.SerializeToString())
+        source_features_list.append(source_features)
+    return source_features_list
 
-  def get_infer_features_given_input(self, source_lines):
-    pass
 
 def get_features(parallel_text_path, save_path, vocab_cls, pos_cls, ner_cls, tfidf_cls, delimeter=" ",
                  copy_source_unique=False, source_sentence_split=False, target_sentence_split=False, tfrecord_out_nums=999):
@@ -156,7 +268,7 @@ def get_features(parallel_text_path, save_path, vocab_cls, pos_cls, ner_cls, tfi
       writer = tf.python_io.TFRecordWriter(save_path + ".0")
     elif (cnt + 1) % tfrecord_out_nums == 0:
       writer.close()
-      x = (cnt + 1) / tfrecord_out_nums + 1
+      x = int( (cnt + 1) / tfrecord_out_nums )
       path = save_path + ".{}".format(x)
       writer = tf.python_io.TFRecordWriter(path)
 

@@ -28,6 +28,10 @@ source_keys_to_features = {
   "source_tfidfs": tf.VarLenFeature(tf.float32),
 }
 
+aliment_keys_to_features = {
+  "aliment": tf.VarLenFeature(tf.int64)
+}
+
 target_keys_to_features = {
   "target_tokens": tf.VarLenFeature(tf.string),
   "target_ids": tf.VarLenFeature(tf.int64),
@@ -35,8 +39,14 @@ target_keys_to_features = {
   "target_ner_ids": tf.VarLenFeature(tf.int64),
   "target_ners": tf.VarLenFeature(tf.string),
 }
+
 source_feature_keys = list(source_keys_to_features.keys())
 target_feature_keys = list(target_keys_to_features.keys())
+
+int64_keys = ["source_ids", "extend_source_ids", "source_oov_nums", "source_ner_ids", "source_pos_ids", "target_ids",
+              "extend_target_ids", "target_ner_ids", "aliment"]
+float_keys = ["source_tfidfs"]
+bytes_keys = ["source_ners", "source_postags", "source_tokens", "source_oov_list", "target_tokens", "target_ners"]
 
 if __name__ == "__main__":
   print(SpecialVocab._fields)

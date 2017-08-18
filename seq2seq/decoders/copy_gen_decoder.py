@@ -81,6 +81,7 @@ class CopyGenDecoder(RNNDecoder):
       num_outputs=1,
       activation_fn=tf.nn.tanh,
     )
+    pgen = tf.sigmoid(pgen)
     return pgen
 
   def compute_output(self, cell_output):
