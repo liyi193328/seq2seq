@@ -83,7 +83,7 @@ def get_char_vocab(source_path_or_dir, char_vocab_path):
     for line in f:
       chars = list(line.strip())
       for char in chars:
-        if char == " ":
+        if char == " " or char == "\t":
           continue
         if char not in char_vocab:
           char_vocab[char] = 0
