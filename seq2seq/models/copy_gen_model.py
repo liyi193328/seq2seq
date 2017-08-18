@@ -97,8 +97,6 @@ class CopyGenSeq2Seq(AttentionSeq2Seq):
     """
     self.create_lookup_table()
 
-    # int64_keys = ["source_len", "source_ids", "extend_source_ids", "source_oov_nums", "target_ids", "extend_target_ids"]
-
     # Slice source to max_len
     ###here can't
     if self.params["source.max_seq_len"] is not None:
@@ -408,10 +406,13 @@ class CopyGenSeq2Seq(AttentionSeq2Seq):
     #     logits=decoder_output.logits[:, :, :],
     #     targets=tf.transpose(labels["target_ids"][:, 1:], [1, 0]),
     #     sequence_length=labels["target_len"] - 1)
+    targets = tf.transpose(labels["extend_target_ids"][:, 1:], [1, 0])
+    final_dists = tf.Print(final_dists, [tf.shape(final_dists)], message="final_dists shape:")
+    targets = tf.Print(targets, [targets], message="extend_target_ids shape:")
 
     losses = seq2seq_losses.cross_entropy_sequence_loss(
         logits=final_dists,
-        targets=tf.transpose(labels["extend_target_ids"][:, 1:], [1, 0]),
+        targets=targets,
         sequence_length=labels["target_len"] - 1)
 
     # Calculate the average log perplexity
