@@ -228,7 +228,10 @@ def get_distributed_schedule(config):
         return FLAGS.schedule
 
     else: #local
-        # return "continuous_train_and_eval"
+        if FLAGS.schedule in ["train", "eval"]:
+          return FLAGS.schedule
+        elif FLAGS.schedule == "default":
+          return "continuous_train_and_eval"
         return FLAGS.schedule
 
 

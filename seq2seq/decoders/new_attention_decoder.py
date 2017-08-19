@@ -157,7 +157,8 @@ class NewAttentionDecoder(RNNDecoder):
     outputs = NewAttentionDecoderOutput(
         logits=logits,
         predicted_ids=sample_ids,
-        cell_output=cell_state.cell_state,
+        # cell_output=cell_state.cell_state,
+        cell_output=cell_output,
         attention_scores=attention_scores,
         attention_context=attention_context)
 

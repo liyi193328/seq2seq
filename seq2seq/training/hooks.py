@@ -492,6 +492,7 @@ class EvaluationSaveSampleHook(EvalutionHook):
 
 
   def before_run(self, _run_context):
+    self._global_step = tf.train.get_global_step()
     tf.logging.info("eval {}_th batch start...".format(self._iter_count))
     fetches = {
           "source_tokens": self._features["source_tokens"],
