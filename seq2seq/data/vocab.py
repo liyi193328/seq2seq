@@ -123,9 +123,9 @@ def create_vocabulary_lookup_table(filename, default_value=None):
     vocab = list(line.strip("\n") for line in file)
   vocab_size = len(vocab)
 
-  has_counts = len(vocab[0].split("\t")) == 2
+  has_counts = len(vocab[0].split()) == 2
   if has_counts:
-    vocab, counts = zip(*[_.split("\t") for _ in vocab])
+    vocab, counts = zip(*[_.split() for _ in vocab])
     counts = [float(_) for _ in counts]
     vocab = list(vocab)
   else:
