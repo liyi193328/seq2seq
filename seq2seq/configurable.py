@@ -123,12 +123,12 @@ class Configurable(object):
   Args:
     params: A dictionary of parameters.
     mode: A value in tf.contrib.learn.ModeKeys
-  """
+    """
 
-  def __init__(self, params, mode):
-    self._params = _parse_params(params, self.default_params())
-    self._mode = mode
-    self._print_params()
+    def __init__(self, params, mode):
+      self._params = _parse_params(params, self.default_params())
+      self._mode = mode
+      self._print_params()
 
   def _print_params(self):
     """Logs parameter values"""

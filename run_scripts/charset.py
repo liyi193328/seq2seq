@@ -41,4 +41,4 @@ def is_other(uchar):
     return False
 
 if __name__ == "__main__":
-  print(is_chinese_punctuation(u"ha"))
+  print(is_chinese("；"))
