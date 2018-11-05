@@ -489,11 +489,10 @@ class EvaluationSaveSampleHook(EvalutionHook):
     if self._evalution_result_dir is not None:
       if os.path.exists(self._evalution_result_dir) is False:
         os.makedirs(self._evalution_result_dir)
-        self._filepath = os.path.join(self._evalution_result_dir,
-                                "eval_samples_{:06d}.txt".format(self._global_step))
-        self._fout = codecs.open(self._filepath, "w", "utf-8")
+
 
   def before_run(self, _run_context):
+    self._global_step = tf.train.get_global_step()
     tf.logging.info("eval {}_th batch start...".format(self._iter_count))
     fetches = {
           "source_tokens": self._features["source_tokens"],
@@ -508,6 +507,7 @@ class EvaluationSaveSampleHook(EvalutionHook):
     tf.logging.info("eval {}_th batch end!".format(self._iter_count))
     self._iter_count += 1
     result_dict, step = run_values.results
+
     if self._current_global_step is None:
       self._eval_str += "Eval samples followed by Target @ Step {}\n".format(step)
       self._eval_str += ("=" * 100) + "\n"
@@ -531,6 +531,9 @@ class EvaluationSaveSampleHook(EvalutionHook):
 
       self._eval_str = result_str
       if self._evalution_result_dir:
+          self._filepath = os.path.join(self._evalution_result_dir,
+                                        "eval_samples_{:06d}.txt".format(step))
+          self._fout = codecs.open(self._filepath, "w", "utf-8")
           self._fout.write(result_str)
 
       self._current_global_step = step
@@ -538,6 +541,7 @@ class EvaluationSaveSampleHook(EvalutionHook):
   def end(self, sess):
     result_str = self._eval_str
     result_str += ("=" * 100) + "\n\n"
-    self._fout.write(result_str)
+    if self._evalution_result_dir:
+      self._fout.write(result_str)
     self._eval_str = ""
     self._current_global_step = None
